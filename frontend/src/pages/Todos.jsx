@@ -80,7 +80,7 @@ function Todos() {
   const totalCount = todos.length
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-linear-to-br from-background via-muted/20 to-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
