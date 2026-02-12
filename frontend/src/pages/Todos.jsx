@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useState ,useEffect} from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { LogOut, Plus, Check, X, Edit2, Trash2, ClipboardList } from 'lucide-react'
+import axios from 'axios'
+
+const API_URL = '/api'
 
 function Todos() {
   const [todos, setTodos] = useState([])
@@ -16,6 +19,17 @@ function Todos() {
   // Generate unique ID
   const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
 
+  useEffect(() => {
+    axios.get(`${API_URL}/todos`)
+      .then(res => {
+        setTodos(res.data)
+      })
+      .catch(err => {
+        console.log(err)
+      })
+  }, [])
+
+
   // Add new todo
   const handleAddTodo = (e) => {
     e.preventDefault()
@@ -23,7 +37,7 @@ function Todos() {
 
     const newTodo = {
       id: generateId(),
-      text: inputValue.trim(),
+      title: inputValue.trim(),
       completed: false,
       createdAt: new Date().toISOString()
     }
@@ -58,7 +72,7 @@ function Todos() {
     }
 
     setTodos(todos.map(todo =>
-      todo.id === id ? { ...todo, text: editValue.trim() } : todo
+      todo.id === id ? { ...todo, title: editValue.trim() } : todo
     ))
     setEditingId(null)
     setEditValue('')
@@ -183,14 +197,14 @@ function Todos() {
                               ? 'line-through text-muted-foreground'
                               : 'text-foreground'
                           }`}
-                          onClick={() => handleStartEdit(todo.id, todo.text)}
+                          onClick={() => handleStartEdit(todo.id, todo.title)}
                         >
-                          {todo.text}
+                          {todo.title}
                         </span>
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => handleStartEdit(todo.id, todo.text)}
+                          onClick={() => handleStartEdit(todo.id, todo.title)}
                           title="Edit"
                         >
                           <Edit2 className="h-4 w-4" />
