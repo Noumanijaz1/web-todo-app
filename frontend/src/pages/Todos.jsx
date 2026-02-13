@@ -1,61 +1,101 @@
-import { useState ,useEffect} from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { LogOut, Plus, Check, X, Edit2, Trash2, ClipboardList } from 'lucide-react'
-import axios from 'axios'
-
-const API_URL = '/api'
+import { todosAPI } from '@/api/todos'
+import { AuthContext } from '@/context/AuthContext'
+import CreateTodoDialog from '@/components/ui/create-todo-dialog'
 
 function Todos() {
   const [todos, setTodos] = useState([])
   const [inputValue, setInputValue] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
+  const [error, setError] = useState('')
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [creating, setCreating] = useState(false)
   const navigate = useNavigate()
+  const { logout } = useContext(AuthContext)
 
-  // Generate unique ID
-  const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
-
+  // Fetch todos from backend
   useEffect(() => {
-    axios.get(`${API_URL}/todos`)
-      .then(res => {
-        setTodos(res.data)
-      })
-      .catch(err => {
-        console.log(err)
-      })
+    const fetchTodos = async () => {
+      try {
+        const data = await todosAPI.getTodos()
+        setTodos(data)
+      } catch (err) {
+        console.error('Failed to fetch todos:', err)
+        setError('Failed to load todos')
+      }
+    }
+    fetchTodos()
   }, [])
 
 
   // Add new todo
-  const handleAddTodo = (e) => {
+  const handleAddTodo = async (e) => {
     e.preventDefault()
     if (inputValue.trim() === '') return
 
-    const newTodo = {
-      id: generateId(),
-      title: inputValue.trim(),
-      completed: false,
-      createdAt: new Date().toISOString()
+    try {
+      const newTodo = await todosAPI.createTodo(inputValue.trim(), '', 'medium', null)
+      setTodos([...todos, newTodo])
+      setInputValue('')
+      setError('')
+    } catch (err) {
+      console.error('Failed to create todo:', err)
+      setError('Failed to create todo')
     }
+  }
 
-    setTodos([...todos, newTodo])
-    setInputValue('')
+  // Handle create todo from dialog
+  const handleCreateTodoDialog = async (formData) => {
+    setCreating(true)
+    try {
+      const dueDate = formData.dueDate ? new Date(formData.dueDate) : null
+      const newTodo = await todosAPI.createTodo(
+        formData.title,
+        formData.description,
+        formData.priority,
+        dueDate
+      )
+      setTodos([...todos, newTodo])
+      setShowCreateDialog(false)
+      setError('')
+    } catch (err) {
+      console.error('Failed to create todo:', err)
+      setError('Failed to create todo')
+    } finally {
+      setCreating(false)
+    }
   }
 
   // Delete todo
-  const handleDeleteTodo = (id) => {
-    setTodos(todos.filter(todo => todo.id !== id))
+  const handleDeleteTodo = async (id) => {
+    try {
+      await todosAPI.deleteTodo(id)
+      setTodos(todos.filter(todo => todo._id !== id))
+      setError('')
+    } catch (err) {
+      console.error('Failed to delete todo:', err)
+      setError('Failed to delete todo')
+    }
   }
 
   // Toggle todo completion
-  const handleToggleComplete = (id) => {
-    setTodos(todos.map(todo =>
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ))
+  const handleToggleComplete = async (id) => {
+    try {
+      const todo = todos.find(t => t._id === id)
+      const updatedTodo = await todosAPI.updateTodo(id, { completed: !todo.completed })
+      setTodos(todos.map(t => (t._id === id ? updatedTodo : t)))
+      setError('')
+    } catch (err) {
+      console.error('Failed to update todo:', err)
+      setError('Failed to update todo')
+    }
   }
 
   // Start editing
@@ -65,17 +105,22 @@ function Todos() {
   }
 
   // Save edit
-  const handleSaveEdit = (id) => {
+  const handleSaveEdit = async (id) => {
     if (editValue.trim() === '') {
       handleDeleteTodo(id)
       return
     }
 
-    setTodos(todos.map(todo =>
-      todo.id === id ? { ...todo, title: editValue.trim() } : todo
-    ))
-    setEditingId(null)
-    setEditValue('')
+    try {
+      const updatedTodo = await todosAPI.updateTodo(id, { title: editValue.trim() })
+      setTodos(todos.map(todo => (todo._id === id ? updatedTodo : todo)))
+      setEditingId(null)
+      setEditValue('')
+      setError('')
+    } catch (err) {
+      console.error('Failed to update todo:', err)
+      setError('Failed to update todo')
+    }
   }
 
   // Cancel edit
@@ -86,7 +131,7 @@ function Todos() {
 
   // Handle logout
   const handleLogout = () => {
-    // Clear any auth state here when you implement backend
+    logout()
     navigate('/login')
   }
 
@@ -116,12 +161,19 @@ function Todos() {
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Add a new todo..."
+                placeholder="Add a quick task..."
                 className="flex-1"
               />
-              <Button type="submit">
+              <Button type="submit" variant="outline">
                 <Plus className="h-4 w-4" />
-                Add
+                Quick Add
+              </Button>
+              <Button 
+                type="button"
+                onClick={() => setShowCreateDialog(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create
               </Button>
             </form>
           </CardContent>
@@ -150,10 +202,10 @@ function Todos() {
               <div className="space-y-2">
                 {todos.map((todo) => (
                   <div
-                    key={todo.id}
+                    key={todo._id}
                     className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
                   >
-                    {editingId === todo.id ? (
+                    {editingId === todo._id ? (
                       // Edit Mode
                       <div className="flex items-center gap-2 flex-1">
                         <Input
@@ -161,7 +213,7 @@ function Todos() {
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveEdit(todo.id)
+                            if (e.key === 'Enter') handleSaveEdit(todo._id)
                             if (e.key === 'Escape') handleCancelEdit()
                           }}
                           className="flex-1"
@@ -170,7 +222,7 @@ function Todos() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => handleSaveEdit(todo.id)}
+                          onClick={() => handleSaveEdit(todo._id)}
                           title="Save"
                         >
                           <Check className="h-4 w-4" />
@@ -189,7 +241,7 @@ function Todos() {
                       <>
                         <Checkbox
                           checked={todo.completed}
-                          onCheckedChange={() => handleToggleComplete(todo.id)}
+                          onCheckedChange={() => handleToggleComplete(todo._id)}
                         />
                         <span
                           className={`flex-1 cursor-pointer ${
@@ -197,14 +249,14 @@ function Todos() {
                               ? 'line-through text-muted-foreground'
                               : 'text-foreground'
                           }`}
-                          onClick={() => handleStartEdit(todo.id, todo.title)}
+                          onClick={() => handleStartEdit(todo._id, todo.title)}
                         >
                           {todo.title}
                         </span>
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => handleStartEdit(todo.id, todo.title)}
+                          onClick={() => handleStartEdit(todo._id, todo.title)}
                           title="Edit"
                         >
                           <Edit2 className="h-4 w-4" />
@@ -212,7 +264,7 @@ function Todos() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => handleDeleteTodo(todo.id)}
+                          onClick={() => handleDeleteTodo(todo._id)}
                           title="Delete"
                           className="text-destructive hover:text-destructive"
                         >
@@ -227,6 +279,14 @@ function Todos() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Create Todo Dialog */}
+      <CreateTodoDialog 
+        open={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        onSubmit={handleCreateTodoDialog}
+        loading={creating}
+      />
     </div>
   )
 }

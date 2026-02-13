@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2, AlertCircle } from 'lucide-react'
+import { AuthContext } from '@/context/AuthContext'
+import { authAPI } from '@/api/auth'
 
 function Signup() {
   const [formData, setFormData] = useState({
@@ -17,6 +19,7 @@ function Signup() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { login } = useContext(AuthContext)
 
   const handleChange = (e) => {
     setFormData({
@@ -50,12 +53,15 @@ function Signup() {
       return
     }
 
-    // Simulate API call
-    setTimeout(() => {
-      // For now, just navigate to todos (you'll connect to backend later)
-      setLoading(false)
+    try {
+      const data = await authAPI.signup(formData.name, formData.email, formData.password)
+      login(data.user, data.token)
       navigate('/todos')
-    }, 1000)
+    } catch (err) {
+      setError(err.response?.data?.message || 'Signup failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
