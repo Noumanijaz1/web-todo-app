@@ -26,14 +26,26 @@ import {
 } from './dialog'
 import { AlertCircle, Loader2, Calendar as CalendarIcon } from 'lucide-react'
 
-export function CreateTodoDialog({ open, onClose, onSubmit, loading = false }) {
+export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, initialData = null, isEditing = false }) {
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    priority: 'medium',
-    dueDate: ''
+    title: initialData?.title || '',
+    description: initialData?.description || '',
+    priority: initialData?.priority || 'medium',
+    dueDate: initialData?.dueDate || ''
   })
   const [error, setError] = useState('')
+
+  // Update formData when initialData changes
+  const [prevInitialData, setPrevInitialData] = useState(initialData)
+  if (prevInitialData !== initialData && initialData) {
+    setFormData({
+      title: initialData.title || '',
+      description: initialData.description || '',
+      priority: initialData.priority || 'medium',
+      dueDate: initialData.dueDate || ''
+    })
+    setPrevInitialData(initialData)
+  }
   const [showDatePicker, setShowDatePicker] = useState(false)
 
   const handleChange = (e) => {
@@ -62,9 +74,9 @@ export function CreateTodoDialog({ open, onClose, onSubmit, loading = false }) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create New Todo</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Todo' : 'Create New Todo'}</DialogTitle>
           <DialogDescription>
-            Add a new task with details and priority
+            {isEditing ? 'Update your task details' : 'Add a new task with details and priority'}
           </DialogDescription>
         </DialogHeader>
         
@@ -156,10 +168,10 @@ export function CreateTodoDialog({ open, onClose, onSubmit, loading = false }) {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  {isEditing ? 'Updating...' : 'Creating...'}
                 </>
               ) : (
-                'Create Todo'
+                isEditing ? 'Update Todo' : 'Create Todo'
               )}
             </Button>
           </div>

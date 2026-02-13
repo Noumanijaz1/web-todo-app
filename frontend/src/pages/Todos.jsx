@@ -4,7 +4,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { LogOut, Plus, Check, X, Edit2, Trash2, ClipboardList } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { LogOut, Plus, Check, X, Edit2, Trash2, ClipboardList, Calendar, AlertCircle } from 'lucide-react'
 import { todosAPI } from '@/api/todos'
 import { AuthContext } from '@/context/AuthContext'
 import CreateTodoDialog from '@/components/ui/create-todo-dialog'
@@ -16,7 +25,10 @@ function Todos() {
   const [editValue, setEditValue] = useState('')
   const [error, setError] = useState('')
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [editingTodo, setEditingTodo] = useState(null)
   const [creating, setCreating] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
   const navigate = useNavigate()
   const { logout } = useContext(AuthContext)
 
@@ -73,12 +85,42 @@ function Todos() {
     }
   }
 
+  // Open edit dialog with current todo
+  const handleOpenEditDialog = (todo) => {
+    setEditingTodo(todo)
+    setShowEditDialog(true)
+  }
+
+  // Handle edit todo from dialog
+  const handleEditTodoDialog = async (formData) => {
+    setCreating(true)
+    try {
+      const dueDate = formData.dueDate ? new Date(formData.dueDate) : null
+      const updatedTodo = await todosAPI.updateTodo(editingTodo._id, {
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        dueDate: dueDate
+      })
+      setTodos(todos.map(t => (t._id === editingTodo._id ? updatedTodo : t)))
+      setShowEditDialog(false)
+      setEditingTodo(null)
+      setError('')
+    } catch (err) {
+      console.error('Failed to update todo:', err)
+      setError('Failed to update todo')
+    } finally {
+      setCreating(false)
+    }
+  }
+
   // Delete todo
   const handleDeleteTodo = async (id) => {
     try {
       await todosAPI.deleteTodo(id)
       setTodos(todos.filter(todo => todo._id !== id))
       setError('')
+      setDeleteConfirmId(null)
     } catch (err) {
       console.error('Failed to delete todo:', err)
       setError('Failed to delete todo')
@@ -100,8 +142,8 @@ function Todos() {
 
   // Start editing
   const handleStartEdit = (id, text) => {
-    setEditingId(id)
-    setEditValue(text)
+    const todo = todos.find(t => t._id === id)
+    handleOpenEditDialog(todo)
   }
 
   // Save edit
@@ -199,78 +241,100 @@ function Todos() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {todos.map((todo) => (
                   <div
                     key={todo._id}
-                    className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+                    className="p-4 rounded-lg border hover:bg-accent/50 transition-colors"
                   >
                     {editingId === todo._id ? (
-                      // Edit Mode
-                      <div className="flex items-center gap-2 flex-1">
-                        <Input
-                          type="text"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveEdit(todo._id)
-                            if (e.key === 'Escape') handleCancelEdit()
-                          }}
-                          className="flex-1"
-                          autoFocus
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSaveEdit(todo._id)}
-                          title="Save"
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={handleCancelEdit}
-                          title="Cancel"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      // Removed inline edit mode - now using dialog
+                      <div />
                     ) : (
                       // View Mode
-                      <>
-                        <Checkbox
-                          checked={todo.completed}
-                          onCheckedChange={() => handleToggleComplete(todo._id)}
-                        />
-                        <span
-                          className={`flex-1 cursor-pointer ${
-                            todo.completed
-                              ? 'line-through text-muted-foreground'
-                              : 'text-foreground'
-                          }`}
-                          onClick={() => handleStartEdit(todo._id, todo.title)}
-                        >
-                          {todo.title}
-                        </span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleStartEdit(todo._id, todo.title)}
-                          title="Edit"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDeleteTodo(todo._id)}
-                          title="Delete"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
+                      <div className="space-y-3">
+                        {/* Title and Actions */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3 flex-1">
+                            <Checkbox
+                              checked={todo.completed}
+                              onCheckedChange={() => handleToggleComplete(todo._id)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1">
+                              <span
+                                className={`text-lg font-medium block ${
+                                  todo.completed
+                                    ? 'line-through text-muted-foreground'
+                                    : 'text-foreground'
+                                }`}
+                              >
+                                {todo.title}
+                              </span>
+                              {todo.description && (
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {todo.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleOpenEditDialog(todo)}
+                              title="Edit"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setDeleteConfirmId(todo._id)}
+                              title="Delete"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Meta Info */}
+                        <div className="flex items-center gap-4 text-sm flex-wrap">
+                          {/* Priority Badge */}
+                          <div className="flex items-center gap-1.5">
+                            <div
+                              className={`w-2 h-2 rounded-full ${
+                                todo.priority === 'high'
+                                  ? 'bg-red-500'
+                                  : todo.priority === 'medium'
+                                  ? 'bg-yellow-500'
+                                  : 'bg-green-500'
+                              }`}
+                            />
+                            <span className="text-muted-foreground capitalize">
+                              {todo.priority} Priority
+                            </span>
+                          </div>
+
+                          {/* Due Date */}
+                          {todo.dueDate && (
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <Calendar className="h-4 w-4" />
+                              <span>
+                                {new Date(todo.dueDate).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                              {new Date(todo.dueDate) < new Date() && !todo.completed && (
+                                <AlertCircle className="h-4 w-4 text-red-500 ml-1" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -287,6 +351,47 @@ function Todos() {
         onSubmit={handleCreateTodoDialog}
         loading={creating}
       />
+
+      {/* Edit Todo Dialog */}
+      {editingTodo && (
+        <CreateTodoDialog 
+          open={showEditDialog}
+          onClose={() => {
+            setShowEditDialog(false)
+            setEditingTodo(null)
+          }}
+          onSubmit={handleEditTodoDialog}
+          loading={creating}
+          initialData={{
+            title: editingTodo.title,
+            description: editingTodo.description || '',
+            priority: editingTodo.priority || 'medium',
+            dueDate: editingTodo.dueDate ? new Date(editingTodo.dueDate).toISOString().split('T')[0] : ''
+          }}
+          isEditing={true}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Todo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this todo? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex justify-end gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteConfirmId && handleDeleteTodo(deleteConfirmId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
