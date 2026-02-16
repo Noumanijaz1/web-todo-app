@@ -27,13 +27,14 @@ import {
 import { AlertCircle, Loader2, Calendar as CalendarIcon } from 'lucide-react'
 import { usersAPI } from '../../api/users'
 
-export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, initialData = null, isEditing = false, isAdmin = false }) {
+export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, initialData = null, isEditing = false, isAdmin = false, projects = [], defaultProjectId }) {
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     description: initialData?.description || '',
     priority: initialData?.priority || 'medium',
     dueDate: initialData?.dueDate || '',
-    assignedTo: initialData?.assignedTo?._id || 'unassigned'
+    assignedTo: initialData?.assignedTo?._id || 'unassigned',
+    projectId: initialData?.projectId?._id || initialData?.projectId || defaultProjectId || 'none'
   })
   const [error, setError] = useState('')
   const [users, setUsers] = useState([])
@@ -66,10 +67,17 @@ export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, ini
       description: initialData.description || '',
       priority: initialData.priority || 'medium',
       dueDate: initialData.dueDate || '',
-      assignedTo: initialData.assignedTo?._id || 'unassigned'
+      assignedTo: initialData.assignedTo?._id || 'unassigned',
+      projectId: initialData.projectId?._id || initialData.projectId || 'none'
     })
     setPrevInitialData(initialData)
   }
+  useEffect(() => {
+    if (open && !initialData && defaultProjectId) {
+      setFormData(prev => ({ ...prev, projectId: defaultProjectId }))
+    }
+  }, [open, defaultProjectId, initialData])
+
   const [showDatePicker, setShowDatePicker] = useState(false)
 
   const handleChange = (e) => {
@@ -90,7 +98,7 @@ export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, ini
     }
 
     onSubmit(formData)
-    setFormData({ title: '', description: '', priority: 'medium', dueDate: '', assignedTo: 'unassigned' })
+    setFormData({ title: '', description: '', priority: 'medium', dueDate: '', assignedTo: 'unassigned', projectId: defaultProjectId || 'none' })
     setError('')
   }
 
@@ -177,6 +185,23 @@ export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, ini
             </div>
           </div>
 
+          {projects.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="projectId">Project (Optional)</Label>
+              <Select value={formData.projectId} onValueChange={(value) => setFormData(prev => ({ ...prev, projectId: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No project</SelectItem>
+                  {projects.map(p => (
+                    <SelectItem key={p._id} value={p._id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {isAdmin && (
             <div className="space-y-2">
               <Label htmlFor="assignedTo">Assign To (Optional)</Label>
@@ -186,9 +211,9 @@ export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, ini
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {users.map(user => (
-                    <SelectItem key={user._id} value={user._id}>
-                      {user.name} ({user.email})
+                  {users.map(u => (
+                    <SelectItem key={u._id} value={u._id}>
+                      {u.name} ({u.email})
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -1,5 +1,22 @@
 const mongoose = require('mongoose');
 
+const commentSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    userName: { type: String },
+    text: { type: String, required: true, trim: true, maxlength: 1000 },
+    createdAt: { type: Date, default: Date.now },
+  }
+);
+
+const attachmentSchema = new mongoose.Schema(
+  {
+    originalName: { type: String, required: true },
+    path: { type: String, required: true },
+  },
+  { timestamps: true }
+);
+
 const todoSchema = new mongoose.Schema(
   {
     title: {
@@ -26,6 +43,10 @@ const todoSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project'
+    },
     priority: {
       type: String,
       enum: ['low', 'medium', 'high'],
@@ -33,7 +54,9 @@ const todoSchema = new mongoose.Schema(
     },
     dueDate: {
       type: Date
-    }
+    },
+    comments: [commentSchema],
+    attachments: [attachmentSchema],
   },
   { timestamps: true }
 );

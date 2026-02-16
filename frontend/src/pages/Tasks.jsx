@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, useMemo } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -26,6 +27,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Plus, MoreVertical, Edit2, Trash2, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 import { todosAPI } from '@/api/todos'
+import { projectsAPI } from '@/api/projects'
+import { usersAPI } from '@/api/users'
 import { AuthContext } from '@/context/AuthContext'
 import CreateTodoDialog from '@/components/ui/create-todo-dialog'
 import { cn } from '@/lib/utils'
@@ -81,22 +84,32 @@ function formatDueDate(dueDate, completed) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function AssigneeCell() {
-  const { user } = useContext(AuthContext)
-  const initial = user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || '?'
+function AssigneeCell({ assignee }) {
+  if (!assignee) {
+    return <span className="text-muted-foreground text-xs">—</span>
+  }
+  const name = assignee.name || assignee.email || '?'
+  const initial = name.charAt(0).toUpperCase()
   return (
-    <div className="flex items-center">
+    <div className="flex items-center gap-2">
       <div className="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
         {initial}
       </div>
+      <span className="text-sm truncate max-w-[100px]">{name}</span>
     </div>
   )
 }
 
 function Todos() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const projectFromUrl = searchParams.get('project') || ''
+
   const [todos, setTodos] = useState([])
+  const [projects, setProjects] = useState([])
+  const [users, setUsers] = useState([])
   const [activeTab, setActiveTab] = useState('all')
-  const [filterProject, setFilterProject] = useState('all')
+  const [filterProject, setFilterProject] = useState(projectFromUrl || 'all')
+  const [filterStatus, setFilterStatus] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterAssignee, setFilterAssignee] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -110,34 +123,59 @@ function Todos() {
   const [actionOpenId, setActionOpenId] = useState(null)
   const { user } = useContext(AuthContext)
   const isAdmin = user?.role === 'admin'
+  const userId = user?.id || user?._id
+
+  useEffect(() => {
+    setFilterProject(projectFromUrl || 'all')
+  }, [projectFromUrl])
 
   useEffect(() => {
     const fetchTodos = async () => {
       try {
-        const data = await todosAPI.getTodos()
+        const params = filterProject && filterProject !== 'all' ? { projectId: filterProject } : {}
+        const data = await todosAPI.getTodos(params)
         setTodos(data)
       } catch (err) {
         console.error('Failed to fetch todos:', err)
       }
     }
     fetchTodos()
-  }, [])
+  }, [filterProject])
+
+  useEffect(() => {
+    projectsAPI.getAll().then((d) => setProjects(Array.isArray(d) ? d : [])).catch(() => {})
+    if (isAdmin) {
+      usersAPI.getAll().then((d) => setUsers(Array.isArray(d) ? d : [])).catch(() => {})
+    }
+  }, [isAdmin])
 
   useEffect(() => {
     const onRefresh = () => {
-      todosAPI.getTodos().then(setTodos).catch(() => {})
+      const params = filterProject && filterProject !== 'all' ? { projectId: filterProject } : {}
+      todosAPI.getTodos(params).then(setTodos).catch(() => {})
     }
     window.addEventListener('todos-refresh', onRefresh)
     return () => window.removeEventListener('todos-refresh', onRefresh)
-  }, [])
+  }, [filterProject])
 
   const filteredTodos = useMemo(() => {
     let list = todos
-    if (activeTab === 'assigned' || activeTab === 'shared') {
-      list = list
+    if (activeTab === 'assigned') {
+      list = list.filter((t) => {
+        const id = t.assignedTo?._id || t.assignedTo
+        return id && String(id) === String(userId)
+      })
     }
+    if (filterStatus === 'done') list = list.filter((t) => t.completed)
+    if (filterStatus === 'todo') list = list.filter((t) => !t.completed)
     if (filterPriority !== 'all') {
       list = list.filter((t) => (t.priority || 'medium') === filterPriority)
+    }
+    if (filterAssignee !== 'all') {
+      list = list.filter((t) => {
+        const id = t.assignedTo?._id || t.assignedTo
+        return id && String(id) === filterAssignee
+      })
     }
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase()
@@ -148,7 +186,7 @@ function Todos() {
       )
     }
     return list
-  }, [todos, activeTab, filterPriority, searchQuery])
+  }, [todos, activeTab, filterStatus, filterPriority, filterAssignee, searchQuery, userId])
 
   const totalFiltered = filteredTodos.length
   const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE))
@@ -158,13 +196,15 @@ function Todos() {
   const handleCreateTodoDialog = async (formData) => {
     setCreating(true)
     try {
-      const dueDate = formData.dueDate ? new Date(formData.dueDate) : null
-      const newTodo = await todosAPI.createTodo(
-        formData.title,
-        formData.description,
-        formData.priority,
-        dueDate
-      )
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+        assignedTo: formData.assignedTo && formData.assignedTo !== 'unassigned' ? formData.assignedTo : undefined,
+        projectId: formData.projectId && formData.projectId !== 'none' ? formData.projectId : undefined,
+      }
+      const newTodo = await todosAPI.createTodo(payload)
       setTodos([...todos, newTodo])
       setShowCreateDialog(false)
     } catch (err) {
@@ -183,7 +223,9 @@ function Todos() {
         title: formData.title,
         description: formData.description,
         priority: formData.priority,
-        dueDate: dueDate,
+        dueDate,
+        assignedTo: formData.assignedTo && formData.assignedTo !== 'unassigned' ? formData.assignedTo : null,
+        projectId: formData.projectId && formData.projectId !== 'none' ? formData.projectId : null,
       })
       setTodos(todos.map((t) => (t._id === editingTodo._id ? updatedTodo : t)))
       setShowEditDialog(false)
@@ -277,12 +319,32 @@ function Todos() {
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={filterProject} onValueChange={setFilterProject}>
-            <SelectTrigger className="w-[140px] bg-white border border-input">
+          <Select
+            value={filterProject}
+            onValueChange={(v) => {
+              setFilterProject(v)
+              if (v && v !== 'all') setSearchParams({ project: v })
+              else setSearchParams({})
+            }}
+          >
+            <SelectTrigger className="w-[160px] bg-white border border-input">
               <SelectValue placeholder="Project" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="all">All projects</SelectItem>
+              {projects.map((p) => (
+                <SelectItem key={p._id} value={p._id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[130px] bg-white border border-input">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All status</SelectItem>
+              <SelectItem value="todo">To Do</SelectItem>
+              <SelectItem value="done">Done</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterPriority} onValueChange={setFilterPriority}>
@@ -290,20 +352,25 @@ function Todos() {
               <SelectValue placeholder="Priority" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="all">All priority</SelectItem>
               <SelectItem value="high">High</SelectItem>
               <SelectItem value="medium">Medium</SelectItem>
               <SelectItem value="low">Low</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={filterAssignee} onValueChange={setFilterAssignee}>
-            <SelectTrigger className="w-[140px] bg-white border border-input">
-              <SelectValue placeholder="Assignee" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-            </SelectContent>
-          </Select>
+          {isAdmin && (
+            <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+              <SelectTrigger className="w-[160px] bg-white border border-input">
+                <SelectValue placeholder="Assignee" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All assignees</SelectItem>
+                {users.map((u) => (
+                  <SelectItem key={u._id} value={u._id}>{u.name || u.email}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <div className="relative flex-1 min-w-[200px] max-w-sm ml-auto">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -379,15 +446,17 @@ function Todos() {
                               todo.completed && 'line-through text-muted-foreground'
                             )}
                           >
-                            {todo.title}
+                            <Link to={`/tasks/${todo._id}`} className="hover:text-primary hover:underline">
+                              {todo.title}
+                            </Link>
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {todo.description || 'My Tasks'}
+                            {todo.projectId?.name || (todo.description || '—')}
                           </p>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <AssigneeCell />
+                        <AssigneeCell assignee={todo.assignedTo} />
                       </td>
                       <td className="py-3 px-4">
                         <PriorityBadge priority={todo.priority} />
@@ -500,6 +569,9 @@ function Todos() {
         onClose={() => setShowCreateDialog(false)}
         onSubmit={handleCreateTodoDialog}
         loading={creating}
+        isAdmin={isAdmin}
+        projects={projects}
+        defaultProjectId={filterProject && filterProject !== 'all' ? filterProject : undefined}
       />
 
       {editingTodo && (
@@ -511,6 +583,8 @@ function Todos() {
           }}
           onSubmit={handleEditTodoDialog}
           loading={creating}
+          isAdmin={isAdmin}
+          projects={projects}
           initialData={{
             title: editingTodo.title,
             description: editingTodo.description || '',
@@ -518,6 +592,8 @@ function Todos() {
             dueDate: editingTodo.dueDate
               ? new Date(editingTodo.dueDate).toISOString().split('T')[0]
               : '',
+            assignedTo: editingTodo.assignedTo?._id || editingTodo.assignedTo,
+            projectId: editingTodo.projectId?._id || editingTodo.projectId,
           }}
           isEditing
         />

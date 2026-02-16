@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,8 @@ import {
   FileText,
 } from 'lucide-react'
 import { todosAPI } from '@/api/todos'
+import { projectsAPI } from '@/api/projects'
+import { AuthContext } from '@/context/AuthContext'
 import { format, isToday, isTomorrow } from 'date-fns'
 import { cn } from '@/lib/utils'
 
@@ -98,33 +100,53 @@ function StatCard({ title, value, subtitle, icon: Icon, trend, trendDown, progre
 }
 
 export default function Dashboard() {
+  const { user } = useContext(AuthContext)
   const [todos, setTodos] = useState([])
+  const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const fetchTodos = () => {
-    todosAPI
-      .getTodos()
-      .then(setTodos)
-      .catch(() => setTodos([]))
+  const fetchData = () => {
+    setLoading(true)
+    Promise.all([
+      todosAPI.getTodos().catch(() => []),
+      projectsAPI.getAll().catch(() => []),
+    ])
+      .then(([todosData, projectsData]) => {
+        setTodos(Array.isArray(todosData) ? todosData : [])
+        setProjects(Array.isArray(projectsData) ? projectsData : [])
+      })
       .finally(() => setLoading(false))
   }
 
   useEffect(() => {
-    fetchTodos()
+    fetchData()
   }, [])
 
   useEffect(() => {
-    const onRefresh = () => fetchTodos()
+    const onRefresh = () => {
+      todosAPI.getTodos().then(setTodos).catch(() => {})
+      projectsAPI.getAll().then(setProjects).catch(() => {})
+    }
     window.addEventListener('todos-refresh', onRefresh)
-    return () => window.removeEventListener('todos-refresh', onRefresh)
+    window.addEventListener('projects-refresh', onRefresh)
+    return () => {
+      window.removeEventListener('todos-refresh', onRefresh)
+      window.removeEventListener('projects-refresh', onRefresh)
+    }
   }, [])
 
-  const total = todos.length
+  const totalTasks = todos.length
   const completed = todos.filter((t) => t.completed).length
   const pending = todos.filter((t) => !t.completed).length
   const now = new Date()
   const overdue = todos.filter((t) => !t.completed && t.dueDate && new Date(t.dueDate) < now).length
-  const completedPct = total > 0 ? Math.round((completed / total) * 100) : 0
+  const userId = user?.id || user?._id
+  const myTasksCount = todos.filter((t) => {
+    const id = t.assignedTo?._id || t.assignedTo
+    return id && String(id) === String(userId)
+  }).length
+  const totalProjects = projects.length
+  const completedPct = totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0
 
   const upcomingDeadlines = todos
     .filter((t) => t.dueDate && !t.completed && new Date(t.dueDate) >= now)
@@ -163,27 +185,24 @@ export default function Dashboard() {
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Total Tasks"
-          value={total}
-          trend="-12%"
-          trendDown
-          icon={ListTodo}
-        />
-        <StatCard
-          title="Completed"
-          value={completed}
-          progress={completedPct}
-          icon={CheckCircle2}
-        />
-        <StatCard
-          title="Pending"
-          value={pending}
-          status="Ongoing"
-          statusClass="text-amber-600"
+          title="Total Projects"
+          value={totalProjects}
           icon={FolderOpen}
         />
         <StatCard
-          title="Overdue"
+          title="Total Pending Tasks"
+          value={pending}
+          status="Ongoing"
+          statusClass="text-amber-600"
+          icon={ListTodo}
+        />
+        <StatCard
+          title="My Tasks"
+          value={myTasksCount}
+          icon={CheckCircle2}
+        />
+        <StatCard
+          title="Overdue Tasks"
           value={overdue}
           status="Immediate Action"
           statusClass="text-destructive"
@@ -222,7 +241,7 @@ export default function Dashboard() {
                         <p className="text-sm text-foreground">
                           <span className="font-medium">{item.user}</span>
                           {' '}{item.action}{' '}
-                          <Link to="/todos" className="text-primary hover:underline font-medium">
+                          <Link to="/tasks" className="text-primary hover:underline font-medium">
                             {item.target}
                           </Link>
                           {item.extra && ` ${item.extra}`}
@@ -273,7 +292,7 @@ export default function Dashboard() {
               ))
             )}
             <Button variant="outline" className="w-full border-dashed mt-2" asChild>
-              <Link to="/todos">
+              <Link to="/tasks">
                 <Calendar className="h-4 w-4 mr-2" />
                 View All Deadlines
               </Link>

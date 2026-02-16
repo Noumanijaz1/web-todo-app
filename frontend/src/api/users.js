@@ -15,4 +15,10 @@ export const usersAPI = {
     });
     return response.data?.data ?? [];
   },
+  getAll: async () => {
+    const response = await axios.get(`${API_BASE}/users`, {
+      headers: getAuthHeader(),
+    });
+    return response.data?.data ?? [];
+  },
 };

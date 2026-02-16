@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom'
 import { useContext, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -98,9 +98,11 @@ export default function AppLayout() {
           ))}
         </nav>
         <div className="p-3 border-t border-border space-y-1">
-          <Button className="w-full justify-start" size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            New Project
+          <Button className="w-full justify-start" size="sm" asChild>
+            <Link to="/projects">
+              <Plus className="h-4 w-4 mr-2" />
+              New Project
+            </Link>
           </Button>
         </div>
       </aside>

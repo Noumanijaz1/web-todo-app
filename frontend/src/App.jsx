@@ -9,6 +9,7 @@ import { AuthProvider, AuthContext } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Tasks from "./pages/Tasks";
+import TaskDetail from "./pages/TaskDetail";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import Teams from "./pages/Teams";
@@ -39,6 +40,7 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="tasks" element={<Tasks />} />
+            <Route path="tasks/:taskId" element={<TaskDetail />} />
             <Route path="projects" element={<Projects />} />
             <Route path="teams" element={<Teams />} />
             <Route path="teams/:teamId" element={<TeamDetails />} />

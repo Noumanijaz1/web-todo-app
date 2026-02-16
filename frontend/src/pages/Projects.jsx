@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -14,24 +15,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import {
-  Plus,
-  Search,
-  Filter,
-  Megaphone,
-  Globe,
-  Smartphone,
-  MessageSquare,
-  Shield,
-  Calendar,
-  X,
-} from 'lucide-react'
+import { Plus, Search, Filter, FolderKanban, Calendar, X } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
+import { projectsAPI } from '@/api/projects'
+import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 
 const STATUS_OPTIONS = [
@@ -41,81 +32,11 @@ const STATUS_OPTIONS = [
   { value: 'completed', label: 'Completed' },
 ]
 
-const MOCK_PROJECTS = [
-  {
-    id: 1,
-    name: 'Q4 Marketing Campaign',
-    description:
-      'Executing multi-channel social media strategy including LinkedIn ads and influencer outreach.',
-    status: 'on_track',
-    progress: 72,
-    icon: Megaphone,
-    iconBg: 'bg-primary/10 text-primary',
-    barColor: 'bg-primary',
-    updated: '2h ago',
-  },
-  {
-    id: 2,
-    name: 'Website Redesign',
-    description:
-      'Updating landing pages and component library to align with new brand guidelines.',
-    status: 'at_risk',
-    progress: 34,
-    icon: Globe,
-    iconBg: 'bg-orange-50 text-orange-500',
-    barColor: 'bg-orange-500',
-    updated: '5h ago',
-  },
-  {
-    id: 3,
-    name: 'Mobile App v2.0',
-    description:
-      'Beta testing new features with selected users. Focusing on offline mode stability.',
-    status: 'on_track',
-    progress: 88,
-    icon: Smartphone,
-    iconBg: 'bg-blue-50 text-blue-500',
-    barColor: 'bg-primary',
-    updated: '1d ago',
-  },
-  {
-    id: 4,
-    name: 'Q3 Review',
-    description:
-      'Compiling feedback from the third quarter stakeholders for executive reporting.',
-    status: 'completed',
-    progress: 100,
-    icon: MessageSquare,
-    iconBg: 'bg-gray-100 text-gray-500',
-    barColor: 'bg-green-500',
-    updated: '3d ago',
-  },
-  {
-    id: 5,
-    name: 'Internal Security Audit',
-    description:
-      'Critical review of all system access points and encryption protocols for compliance.',
-    status: 'at_risk',
-    progress: 15,
-    icon: Shield,
-    iconBg: 'bg-red-50 text-red-500',
-    barColor: 'bg-red-500',
-    updated: '4d ago',
-  },
-]
-
 const statusBadgeClasses = {
   on_track: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   at_risk: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
   completed: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
 }
-
-const WORKSPACE_OPTIONS = [
-  { value: 'product-design', label: 'Product Design' },
-  { value: 'engineering', label: 'Engineering' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'sales', label: 'Sales' },
-]
 
 const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Low', dotColor: 'bg-gray-400' },
@@ -124,41 +45,69 @@ const PRIORITY_OPTIONS = [
 ]
 
 export default function Projects() {
+  const [projects, setProjects] = useState([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectDesc, setNewProjectDesc] = useState('')
-  const [workspace, setWorkspace] = useState('product-design')
   const [dueDate, setDueDate] = useState('')
   const [priority, setPriority] = useState('low')
+  const [creating, setCreating] = useState(false)
+
+  const fetchProjects = () => {
+    projectsAPI
+      .getAll()
+      .then((data) => setProjects(Array.isArray(data) ? data : []))
+      .catch(() => setProjects([]))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetchProjects()
+  }, [])
+
+  useEffect(() => {
+    const onRefresh = () => fetchProjects()
+    window.addEventListener('projects-refresh', onRefresh)
+    return () => window.removeEventListener('projects-refresh', onRefresh)
+  }, [])
 
   const filteredProjects = useMemo(() => {
-    return MOCK_PROJECTS.filter((project) => {
+    return projects.filter((project) => {
       const matchesSearch =
         !searchQuery ||
-        project.name.toLowerCase().includes(searchQuery.toLowerCase())
+        (project.name && project.name.toLowerCase().includes(searchQuery.toLowerCase()))
       const matchesStatus =
         statusFilter === 'all' || project.status === statusFilter
       return matchesSearch && matchesStatus
     })
-  }, [searchQuery, statusFilter])
+  }, [projects, searchQuery, statusFilter])
 
-  const handleCreateProject = (e) => {
+  const handleCreateProject = async (e) => {
     e.preventDefault()
-    // TODO: Wire up to API
-    setNewProjectName('')
-    setNewProjectDesc('')
-    setWorkspace('product-design')
-    setDueDate('')
-    setPriority('low')
-    setCreateDialogOpen(false)
+    setCreating(true)
+    try {
+      await projectsAPI.create({
+        name: newProjectName,
+        description: newProjectDesc,
+        dueDate: dueDate || undefined,
+        priority,
+      })
+      window.dispatchEvent(new CustomEvent('projects-refresh'))
+      resetCreateForm()
+      setCreateDialogOpen(false)
+    } catch (err) {
+      console.error('Failed to create project:', err)
+    } finally {
+      setCreating(false)
+    }
   }
 
   const resetCreateForm = () => {
     setNewProjectName('')
     setNewProjectDesc('')
-    setWorkspace('product-design')
     setDueDate('')
     setPriority('low')
   }
@@ -218,84 +167,53 @@ export default function Projects() {
       </div>
 
       {/* Grid Layout */}
+      {loading ? (
+        <div className="py-12 text-center text-muted-foreground">Loading projects…</div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProjects.map((project) => {
-          const Icon = project.icon
-          return (
-            <Card
-              key={project.id}
-              className="p-5 hover:shadow-lg transition-all group flex flex-col cursor-pointer"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div
-                  className={cn(
-                    'p-2 rounded-lg',
-                    project.iconBg
-                  )}
-                >
-                  <Icon className="size-6" />
-                </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'uppercase tracking-wider text-[11px] font-bold',
-                    statusBadgeClasses[project.status]
-                  )}
-                >
-                  {project.status === 'on_track' ? 'On Track' : project.status === 'at_risk' ? 'At Risk' : 'Completed'}
-                </Badge>
+        {filteredProjects.map((project) => (
+          <Card
+            key={project._id}
+            className="p-5 hover:shadow-lg transition-all group flex flex-col"
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <FolderKanban className="size-6" />
               </div>
-              <h3 className="text-base font-bold text-foreground mb-1 group-hover:text-primary transition-colors">
-                {project.name}
-              </h3>
-              <p className="text-sm text-muted-foreground line-clamp-2 mb-6">
-                {project.description}
+              <Badge
+                variant="outline"
+                className={cn(
+                  'uppercase tracking-wider text-[11px] font-bold',
+                  statusBadgeClasses[project.status] || statusBadgeClasses.on_track
+                )}
+              >
+                {project.status === 'on_track' ? 'On Track' : project.status === 'at_risk' ? 'At Risk' : 'Completed'}
+              </Badge>
+            </div>
+            <h3 className="text-base font-bold text-foreground mb-1 group-hover:text-primary transition-colors">
+              {project.name}
+            </h3>
+            <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+              {project.description || 'No description'}
+            </p>
+            {project.updatedAt && (
+              <p className="text-[11px] text-muted-foreground mb-4 flex items-center gap-1">
+                <Calendar className="size-3.5" />
+                Updated {formatDistanceToNow(new Date(project.updatedAt), { addSuffix: true })}
               </p>
-              <div className="mt-auto">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs font-semibold text-foreground">
-                    Progress
-                  </span>
-                  <span
-                    className={cn(
-                      'text-xs font-bold',
-                      project.status === 'at_risk' && project.progress < 40
-                        ? 'text-red-500'
-                        : 'text-primary'
-                    )}
-                  >
-                    {project.progress}%
-                  </span>
-                </div>
-                <div className="w-full bg-muted h-2 rounded-full overflow-hidden mb-6">
-                  <div
-                    className={cn('h-full rounded-full', project.barColor)}
-                    style={{ width: `${project.progress}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex -space-x-2">
-                    {[1, 2].map((i) => (
-                      <div
-                        key={i}
-                        className="size-7 rounded-full border-2 border-background bg-muted"
-                      />
-                    ))}
-                    <div className="size-7 rounded-full border-2 border-background bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                      +4
-                    </div>
-                  </div>
-                  <span className="text-[11px] text-muted-foreground font-medium">
-                    Updated {project.updated}
-                  </span>
-                </div>
-              </div>
-            </Card>
-          )
-        })}
+            )}
+            <div className="mt-auto pt-4 border-t border-border">
+              <Button variant="outline" size="sm" className="w-full" asChild>
+                <Link to={`/tasks?project=${project._id}`}>
+                  View project tasks
+                </Link>
+              </Button>
+            </div>
+          </Card>
+        ))}
         {/* New Project Card */}
         <Card
-          className="p-5 flex flex-col items-center justify-center text-center cursor-pointer border-dashed bg-muted/30 hover:bg-muted/50 hover:border-primary/30 transition-all min-h-[280px]"
+          className="p-5 flex flex-col items-center justify-center text-center cursor-pointer border-dashed bg-muted/30 hover:bg-muted/50 hover:border-primary/30 transition-all min-h-[240px]"
           onClick={() => setCreateDialogOpen(true)}
         >
           <div className="size-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-3">
@@ -307,6 +225,7 @@ export default function Projects() {
           </p>
         </Card>
       </div>
+      )}
 
       {/* Create Project Dialog */}
       <Dialog
@@ -382,48 +301,23 @@ export default function Projects() {
                 />
               </div>
 
-              {/* Workspace & Due Date */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label
-                    htmlFor="workspace"
-                    className="text-sm font-semibold"
-                  >
-                    Select Workspace
-                  </Label>
-                  <Select value={workspace} onValueChange={setWorkspace}>
-                    <SelectTrigger
-                      id="workspace"
-                      className="w-full h-11 px-4 py-3 rounded-lg"
-                    >
-                      <SelectValue placeholder="Select workspace" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {WORKSPACE_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label
-                    htmlFor="due-date"
-                    className="text-sm font-semibold"
-                  >
-                    Due Date
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="due-date"
-                      type="date"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="pr-10 h-11 px-4 py-3 rounded-lg"
-                    />
-                    <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
-                  </div>
+              {/* Due Date */}
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="due-date"
+                  className="text-sm font-semibold"
+                >
+                  Due Date (optional)
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="due-date"
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="pr-10 h-11 px-4 py-3 rounded-lg"
+                  />
+                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 size-5 text-muted-foreground pointer-events-none" />
                 </div>
               </div>
 
@@ -484,9 +378,14 @@ export default function Projects() {
               <Button
                 type="submit"
                 className="shadow-lg shadow-primary/20 font-bold"
+                disabled={creating}
               >
-                <Plus className="size-4" />
-                Create Project
+                {creating ? 'Creating…' : (
+                  <>
+                    <Plus className="size-4" />
+                    Create Project
+                  </>
+                )}
               </Button>
             </div>
           </form>
