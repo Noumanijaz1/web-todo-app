@@ -1,13 +1,19 @@
-import { useContext } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, AuthContext } from './context/AuthContext'
-import Login from './pages/Login'
-import Signup from './pages/Signup'
-import Todos from './pages/Todos'
+import { useContext } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider, AuthContext } from "./context/AuthContext";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Todos from "./pages/Todos";
+import AdminDashboard from "./pages/AdminDashboard";
 
 function ProtectedRoute({ children }) {
-  const { token } = useContext(AuthContext)
-  return token ? children : <Navigate to="/login" replace />
+  const { token } = useContext(AuthContext);
+  return token ? children : <Navigate to="/login" replace />;
 }
 
 function App() {
@@ -25,11 +31,19 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin-dashboard"
+            element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/" element={<Navigate to="/todos" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
-  )
+  );
 }
 
-export default App
+export default App;

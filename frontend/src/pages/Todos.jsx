@@ -30,7 +30,15 @@ function Todos() {
   const [creating, setCreating] = useState(false)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
   const navigate = useNavigate()
-  const { logout } = useContext(AuthContext)
+  const { logout, user } = useContext(AuthContext)
+  const isAdmin = user?.role === 'admin'
+
+  // If admin, redirect to admin dashboard
+  useEffect(() => {
+    if (isAdmin) {
+      navigate('/admin-dashboard')
+    }
+  }, [isAdmin, navigate])
 
   // Fetch todos from backend
   useEffect(() => {
@@ -196,30 +204,32 @@ function Todos() {
         </div>
 
         {/* Add Todo Form */}
-        <Card>
-          <CardContent className="pt-6">
-            <form onSubmit={handleAddTodo} className="flex gap-2">
-              <Input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Add a quick task..."
-                className="flex-1"
-              />
-              <Button type="submit" variant="outline">
-                <Plus className="h-4 w-4" />
-                Quick Add
-              </Button>
-              <Button 
-                type="button"
-                onClick={() => setShowCreateDialog(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        {isAdmin && (
+          <Card>
+            <CardContent className="pt-6">
+              <form onSubmit={handleAddTodo} className="flex gap-2">
+                <Input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Add a quick task..."
+                  className="flex-1"
+                />
+                <Button type="submit" variant="outline">
+                  <Plus className="h-4 w-4" />
+                  Quick Add
+                </Button>
+                <Button 
+                  type="button"
+                  onClick={() => setShowCreateDialog(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Todo List */}
         <Card>
@@ -279,23 +289,27 @@ function Todos() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleOpenEditDialog(todo)}
-                              title="Edit"
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => setDeleteConfirmId(todo._id)}
-                              title="Delete"
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {isAdmin && (
+                              <>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleOpenEditDialog(todo)}
+                                  title="Edit"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => setDeleteConfirmId(todo._id)}
+                                  title="Delete"
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
 

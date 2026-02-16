@@ -11,9 +11,11 @@ app.use(express.json());
 
 const authRoutes = require('./routes/auth');
 const todosRoutes = require('./routes/todos');
+const usersRoutes = require('./routes/users');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/todos', todosRoutes);
+app.use('/api/users', usersRoutes);
 
 const { errorHandler } = require('./middleware/errorHandler');
 app.use(errorHandler);

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { Button } from './button'
 import { Input } from './input'
@@ -25,15 +25,38 @@ import {
   DialogTitle,
 } from './dialog'
 import { AlertCircle, Loader2, Calendar as CalendarIcon } from 'lucide-react'
+import usersAPI from '../../api/users'
 
-export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, initialData = null, isEditing = false }) {
+export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, initialData = null, isEditing = false, isAdmin = false }) {
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     description: initialData?.description || '',
     priority: initialData?.priority || 'medium',
-    dueDate: initialData?.dueDate || ''
+    dueDate: initialData?.dueDate || '',
+    assignedTo: initialData?.assignedTo?._id || 'unassigned'
   })
   const [error, setError] = useState('')
+  const [users, setUsers] = useState([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+
+  // Fetch users when dialog opens and user is admin
+  useEffect(() => {
+    if (open && isAdmin) {
+      fetchUsers()
+    }
+  }, [open, isAdmin])
+
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true)
+      const allUsers = await usersAPI.getAll()
+      setUsers(allUsers)
+    } catch (err) {
+      console.error('Failed to fetch users:', err)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
 
   // Update formData when initialData changes
   const [prevInitialData, setPrevInitialData] = useState(initialData)
@@ -42,7 +65,8 @@ export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, ini
       title: initialData.title || '',
       description: initialData.description || '',
       priority: initialData.priority || 'medium',
-      dueDate: initialData.dueDate || ''
+      dueDate: initialData.dueDate || '',
+      assignedTo: initialData.assignedTo?._id || 'unassigned'
     })
     setPrevInitialData(initialData)
   }
@@ -66,7 +90,7 @@ export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, ini
     }
 
     onSubmit(formData)
-    setFormData({ title: '', description: '', priority: 'medium', dueDate: '' })
+    setFormData({ title: '', description: '', priority: 'medium', dueDate: '', assignedTo: 'unassigned' })
     setError('')
   }
 
@@ -152,6 +176,25 @@ export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, ini
               </Popover>
             </div>
           </div>
+
+          {isAdmin && (
+            <div className="space-y-2">
+              <Label htmlFor="assignedTo">Assign To (Optional)</Label>
+              <Select value={formData.assignedTo} onValueChange={(value) => setFormData(prev => ({ ...prev, assignedTo: value }))}>
+                <SelectTrigger disabled={loadingUsers}>
+                  <SelectValue placeholder={loadingUsers ? 'Loading users...' : 'Select a user'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {users.map(user => (
+                    <SelectItem key={user._id} value={user._id}>
+                      {user.name} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {error && (
             <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">

@@ -22,6 +22,10 @@ const todoSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Todo must belong to a user']
     },
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
     priority: {
       type: String,
       enum: ['low', 'medium', 'high'],
