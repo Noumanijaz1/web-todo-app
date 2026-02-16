@@ -30,7 +30,7 @@ import { todosAPI } from '@/api/todos'
 import { projectsAPI } from '@/api/projects'
 import { usersAPI } from '@/api/users'
 import { AuthContext } from '@/context/AuthContext'
-import CreateTodoDialog from '@/components/ui/create-todo-dialog'
+import CreateTaskDialog from '@/components/ui/create-task-dialog'
 import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 5
@@ -40,17 +40,17 @@ const TABS = [
   { id: 'shared', label: 'Shared' },
 ]
 
-function StatusBadge({ completed }) {
-  if (completed) {
-    return (
-      <Badge className="bg-green-100 text-green-800 border-0 font-medium text-xs">
-        Done
-      </Badge>
-    )
+function StatusBadge({ status, completed }) {
+  const s = status || (completed ? 'done' : 'todo')
+  const labels = { todo: 'To Do', in_progress: 'In Progress', done: 'Done' }
+  const styles = {
+    todo: 'bg-muted text-muted-foreground border-0',
+    in_progress: 'bg-blue-100 text-blue-800 border-0',
+    done: 'bg-green-100 text-green-800 border-0',
   }
   return (
-    <Badge className="bg-muted text-muted-foreground border-0 font-medium text-xs">
-      To Do
+    <Badge className={cn('font-medium text-xs', styles[s] || styles.todo)}>
+      {labels[s] || 'To Do'}
     </Badge>
   )
 }
@@ -166,8 +166,8 @@ function Todos() {
         return id && String(id) === String(userId)
       })
     }
-    if (filterStatus === 'done') list = list.filter((t) => t.completed)
-    if (filterStatus === 'todo') list = list.filter((t) => !t.completed)
+    if (filterStatus === 'done') list = list.filter((t) => t.status === 'done' || t.completed)
+    if (filterStatus === 'todo') list = list.filter((t) => (t.status || (t.completed ? 'done' : 'todo')) !== 'done')
     if (filterPriority !== 'all') {
       list = list.filter((t) => (t.priority || 'medium') === filterPriority)
     }
@@ -193,41 +193,51 @@ function Todos() {
   const start = (currentPage - 1) * PAGE_SIZE
   const pageTodos = filteredTodos.slice(start, start + PAGE_SIZE)
 
-  const handleCreateTodoDialog = async (formData) => {
+  const handleCreateTaskDialog = async (formData, attachmentFiles = []) => {
     setCreating(true)
     try {
       const payload = {
         title: formData.title,
         description: formData.description,
         priority: formData.priority,
+        status: formData.status || 'todo',
         dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
         assignedTo: formData.assignedTo && formData.assignedTo !== 'unassigned' ? formData.assignedTo : undefined,
         projectId: formData.projectId && formData.projectId !== 'none' ? formData.projectId : undefined,
       }
       const newTodo = await todosAPI.createTodo(payload)
-      setTodos([...todos, newTodo])
+      for (const file of attachmentFiles) {
+        try {
+          await todosAPI.addAttachment(newTodo.id, file)
+        } catch (e) {
+          console.error('Failed to upload attachment:', e)
+        }
+      }
+      const taskToAdd = attachmentFiles.length > 0 ? await todosAPI.getTodoById(newTodo.id) : newTodo
+      setTodos((prev) => [...prev, taskToAdd])
       setShowCreateDialog(false)
     } catch (err) {
-      console.error('Failed to create todo:', err)
+      console.error('Failed to create task:', err)
     } finally {
       setCreating(false)
     }
   }
 
-  const handleEditTodoDialog = async (formData) => {
+  const handleEditTaskDialog = async (formData) => {
     if (!editingTodo) return
     setCreating(true)
     try {
       const dueDate = formData.dueDate ? new Date(formData.dueDate) : null
-      const updatedTodo = await todosAPI.updateTodo(editingTodo._id, {
+      const updatedTodo = await todosAPI.updateTodo(editingTodo.id, {
         title: formData.title,
         description: formData.description,
         priority: formData.priority,
+        status: formData.status || 'todo',
         dueDate,
         assignedTo: formData.assignedTo && formData.assignedTo !== 'unassigned' ? formData.assignedTo : null,
         projectId: formData.projectId && formData.projectId !== 'none' ? formData.projectId : null,
       })
-      setTodos(todos.map((t) => (t._id === editingTodo._id ? updatedTodo : t)))
+      setTodos(todos.map((t) => (t.id === editingTodo.id ? updatedTodo : t)))
       setShowEditDialog(false)
       setEditingTodo(null)
     } catch (err) {
@@ -240,7 +250,7 @@ function Todos() {
   const handleDeleteTodo = async (id) => {
     try {
       await todosAPI.deleteTodo(id)
-      setTodos(todos.filter((t) => t._id !== id))
+      setTodos(todos.filter((t) => t.id !== id))
       setSelectedIds((s) => {
         const next = new Set(s)
         next.delete(id)
@@ -254,9 +264,10 @@ function Todos() {
 
   const handleToggleComplete = async (id) => {
     try {
-      const todo = todos.find((t) => t._id === id)
-      const updated = await todosAPI.updateTodo(id, { completed: !todo.completed })
-      setTodos(todos.map((t) => (t._id === id ? updated : t)))
+      const todo = todos.find((t) => t.id === id)
+      const isDone = todo.status === 'done' || todo.completed
+      const updated = await todosAPI.updateTodo(id, { status: isDone ? 'todo' : 'done' })
+      setTodos(todos.map((t) => (t.id === id ? updated : t)))
     } catch (err) {
       console.error('Failed to update todo:', err)
     }
@@ -264,7 +275,7 @@ function Todos() {
 
   const toggleSelectAll = (checked) => {
     if (checked) {
-      setSelectedIds(new Set(pageTodos.map((t) => t._id)))
+      setSelectedIds(new Set(pageTodos.map((t) => t.id)))
     } else {
       setSelectedIds(new Set())
     }
@@ -279,7 +290,7 @@ function Todos() {
     })
   }
 
-  const allSelected = pageTodos.length > 0 && pageTodos.every((t) => selectedIds.has(t._id))
+  const allSelected = pageTodos.length > 0 && pageTodos.every((t) => selectedIds.has(t.id))
 
   return (
     <>
@@ -425,16 +436,16 @@ function Todos() {
                 ) : (
                   pageTodos.map((todo) => (
                     <tr
-                      key={todo._id}
+                      key={todo.id}
                       className={cn(
                         'border-b border-border last:border-b-0 transition-colors',
-                        selectedIds.has(todo._id) && 'bg-primary/5'
+                        selectedIds.has(todo.id) && 'bg-primary/5'
                       )}
                     >
                       <td className="py-3 px-4">
                         <Checkbox
-                          checked={selectedIds.has(todo._id)}
-                          onCheckedChange={() => toggleSelectOne(todo._id)}
+                          checked={selectedIds.has(todo.id)}
+                          onCheckedChange={() => toggleSelectOne(todo.id)}
                           aria-label={`Select ${todo.title}`}
                         />
                       </td>
@@ -446,7 +457,7 @@ function Todos() {
                               todo.completed && 'line-through text-muted-foreground'
                             )}
                           >
-                            <Link to={`/tasks/${todo._id}`} className="hover:text-primary hover:underline">
+                            <Link to={`/tasks/${todo.id}`} className="hover:text-primary hover:underline">
                               {todo.title}
                             </Link>
                           </p>
@@ -462,7 +473,7 @@ function Todos() {
                         <PriorityBadge priority={todo.priority} />
                       </td>
                       <td className="py-3 px-4">
-                        <StatusBadge completed={todo.completed} />
+                        <StatusBadge status={todo.status} completed={todo.completed} />
                       </td>
                       <td className="py-3 px-4 text-muted-foreground">
                         {formatDueDate(todo.dueDate, todo.completed)}
@@ -470,8 +481,8 @@ function Todos() {
                       <td className="py-3 px-4">
                         {isAdmin && (
                           <Popover
-                            open={actionOpenId === todo._id}
-                            onOpenChange={(open) => setActionOpenId(open ? todo._id : null)}
+                            open={actionOpenId === todo.id}
+                            onOpenChange={(open) => setActionOpenId(open ? todo.id : null)}
                           >
                             <PopoverTrigger asChild>
                               <Button
@@ -490,11 +501,11 @@ function Todos() {
                                   size="sm"
                                   className="justify-start"
                                   onClick={() => {
-                                    handleToggleComplete(todo._id)
+                                    handleToggleComplete(todo.id)
                                     setActionOpenId(null)
                                   }}
                                 >
-                                  {todo.completed ? 'Mark as To Do' : 'Mark as Done'}
+                                  {(todo.status === 'done' || todo.completed) ? 'Mark as To Do' : 'Mark as Done'}
                                 </Button>
                                 <Button
                                   variant="ghost"
@@ -514,7 +525,7 @@ function Todos() {
                                   size="sm"
                                   className="justify-start text-destructive hover:text-destructive"
                                   onClick={() => {
-                                    setDeleteConfirmId(todo._id)
+                                    setDeleteConfirmId(todo.id)
                                     setActionOpenId(null)
                                   }}
                                 >
@@ -564,10 +575,10 @@ function Todos() {
         )}
       </div>
 
-      <CreateTodoDialog
+      <CreateTaskDialog
         open={showCreateDialog}
         onClose={() => setShowCreateDialog(false)}
-        onSubmit={handleCreateTodoDialog}
+        onSubmit={handleCreateTaskDialog}
         loading={creating}
         isAdmin={isAdmin}
         projects={projects}
@@ -575,25 +586,26 @@ function Todos() {
       />
 
       {editingTodo && (
-        <CreateTodoDialog
+        <CreateTaskDialog
           open={showEditDialog}
           onClose={() => {
             setShowEditDialog(false)
             setEditingTodo(null)
           }}
-          onSubmit={handleEditTodoDialog}
+          onSubmit={handleEditTaskDialog}
           loading={creating}
           isAdmin={isAdmin}
           projects={projects}
           initialData={{
             title: editingTodo.title,
-            description: editingTodo.description || '',
-            priority: editingTodo.priority || 'medium',
+            description: editingTodo.description ?? '',
+            priority: editingTodo.priority ?? 'medium',
+            status: editingTodo.status ?? (editingTodo.completed ? 'done' : 'todo'),
             dueDate: editingTodo.dueDate
               ? new Date(editingTodo.dueDate).toISOString().split('T')[0]
               : '',
-            assignedTo: editingTodo.assignedTo?._id || editingTodo.assignedTo,
-            projectId: editingTodo.projectId?._id || editingTodo.projectId,
+            assignedTo: editingTodo.assignedTo?._id ?? editingTodo.assignedTo,
+            projectId: editingTodo.projectId?._id ?? editingTodo.projectId,
           }}
           isEditing
         />

@@ -39,8 +39,10 @@ exports.getTodoById = async (req, res, next) => {
 
 exports.createTodo = async (req, res, next) => {
   try {
-    // Any authenticated user can create a task (userId = creator)
-    const todo = await Todo.create({ ...req.body, userId: req.user.id });
+    const payload = { ...req.body, userId: req.user.id };
+    const status = payload.status || 'todo';
+    payload.completed = status === 'done';
+    const todo = await Todo.create(payload);
     const populatedTodo = await Todo.findById(todo._id)
       .populate('assignedTo', 'name email')
       .populate('projectId', 'name');
@@ -52,22 +54,24 @@ exports.updateTodo = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
     const todo = await Todo.findById(req.params.id);
-    
+
     if (!todo) return res.status(404).json({ message: 'Not found' });
-    // Admins can update anything
-    if (user.role === 'admin') {
-      // proceed
-    } else {
-      // Regular users may only toggle completion on todos assigned to them
-      if (!todo.assignedTo || todo.assignedTo.toString() !== req.user.id) {
+    if (user.role !== 'admin') {
+      const assignedId = todo.assignedTo ? String(todo.assignedTo) : null;
+      if (!assignedId || assignedId !== req.user.id) {
         return res.status(403).json({ message: 'Not authorized' });
       }
-      if (Object.keys(req.body).some(key => key !== 'completed')) {
-        return res.status(403).json({ message: 'Users can only update completion status' });
+      const allowedKeys = ['completed', 'status'];
+      if (Object.keys(req.body).some(key => !allowedKeys.includes(key))) {
+        return res.status(403).json({ message: 'Users can only update completion/status' });
       }
     }
 
-    const updatedTodo = await Todo.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    const update = { ...req.body };
+    if (update.status !== undefined) {
+      update.completed = update.status === 'done';
+    }
+    const updatedTodo = await Todo.findByIdAndUpdate(req.params.id, update, { new: true })
       .populate('assignedTo', 'name email')
       .populate('projectId', 'name');
     res.json(updatedTodo);

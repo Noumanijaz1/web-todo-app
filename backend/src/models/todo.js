@@ -19,41 +19,49 @@ const attachmentSchema = new mongoose.Schema(
 
 const todoSchema = new mongoose.Schema(
   {
+    // Required / core fields when creating a task
     title: {
       type: String,
       required: [true, 'Please provide a todo title'],
       trim: true,
-      maxlength: [100, 'Title cannot exceed 100 characters']
+      maxlength: [100, 'Title cannot exceed 100 characters'],
     },
     description: {
       type: String,
       trim: true,
-      maxlength: [500, 'Description cannot exceed 500 characters']
-    },
-    completed: {
-      type: Boolean,
-      default: false
-    },
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Todo must belong to a user']
-    },
-    assignedTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      maxlength: [500, 'Description cannot exceed 500 characters'],
     },
     projectId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Project'
+      ref: 'Project',
+    },
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
     priority: {
       type: String,
-      enum: ['low', 'medium', 'high'],
-      default: 'medium'
+      enum: ['low', 'medium', 'high','urgent'],
+      default: 'medium',
+    },
+    status: {
+      type: String,
+      enum: ['todo', 'in_progress', 'done'],
+      default: 'todo',
     },
     dueDate: {
-      type: Date
+      type: Date,
+    },
+    // Creator (set by backend)
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Todo must belong to a user'],
+    },
+    // Legacy: keep in sync with status === 'done'
+    completed: {
+      type: Boolean,
+      default: false,
     },
     comments: [commentSchema],
     attachments: [attachmentSchema],

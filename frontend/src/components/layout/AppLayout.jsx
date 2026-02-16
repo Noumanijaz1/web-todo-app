@@ -15,7 +15,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { AuthContext } from '@/context/AuthContext'
-import CreateTodoDialog from '@/components/ui/create-todo-dialog'
+import CreateTaskDialog from '@/components/ui/create-task-dialog'
 import { todosAPI } from '@/api/todos'
 import { cn } from '@/lib/utils'
 
@@ -23,9 +23,9 @@ import { cn } from '@/lib/utils'
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/tasks', icon: CheckSquare, label: 'Tasks' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
   { to: '/projects', icon: FolderKanban, label: 'Projects' },
   { to: '/teams', icon: Users, label: 'Teams' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 export default function AppLayout() {
@@ -41,20 +41,30 @@ export default function AppLayout() {
     navigate('/login')
   }
 
-  const handleQuickCreate = async (formData) => {
+  const handleQuickCreate = async (formData, attachmentFiles = []) => {
     setCreating(true)
     try {
-      const dueDate = formData.dueDate ? new Date(formData.dueDate) : null
-      await todosAPI.createTodo(
-        formData.title,
-        formData.description,
-        formData.priority,
-        dueDate
-      )
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        status: formData.status || 'todo',
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : null,
+        assignedTo: formData.assignedTo && formData.assignedTo !== 'unassigned' ? formData.assignedTo : undefined,
+        projectId: formData.projectId && formData.projectId !== 'none' ? formData.projectId : undefined,
+      }
+      const newTask = await todosAPI.createTodo(payload)
+      for (const file of attachmentFiles) {
+        try {
+          await todosAPI.addAttachment(newTask.id, file)
+        } catch (e) {
+          console.error('Failed to upload attachment:', e)
+        }
+      }
       setShowQuickCreate(false)
       window.dispatchEvent(new CustomEvent('todos-refresh'))
     } catch (err) {
-      console.error('Failed to create todo:', err)
+      console.error('Failed to create task:', err)
     } finally {
       setCreating(false)
     }
@@ -111,7 +121,7 @@ export default function AppLayout() {
       <div className="flex-1 pl-56 flex flex-col min-h-screen">
         {/* Top header */}
         <header className="sticky top-0 z-20 bg-white border-b border-border shadow-sm">
-          <div className="flex items-center gap-4 px-6 py-4">
+          <div className="flex items-center justify-between gap-4 px-6 py-4">
             <div className="flex-1 flex items-center gap-4 max-w-2xl">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -180,7 +190,7 @@ export default function AppLayout() {
         </main>
       </div>
 
-      <CreateTodoDialog
+      <CreateTaskDialog
         open={showQuickCreate}
         onClose={() => setShowQuickCreate(false)}
         onSubmit={handleQuickCreate}

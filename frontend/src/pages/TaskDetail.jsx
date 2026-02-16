@@ -72,10 +72,9 @@ export default function TaskDetail() {
 
   const handleStatusChange = async (value) => {
     if (!taskId) return
-    const completed = value === 'done'
     setStatusUpdating(true)
     try {
-      const updated = await todosAPI.updateTodo(taskId, { completed })
+      const updated = await todosAPI.updateTodo(taskId, { status: value })
       setTask(updated)
     } catch (err) {
       console.error('Failed to update status:', err)
@@ -147,7 +146,7 @@ export default function TaskDetail() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-xl">{task.title}</CardTitle>
             <Select
-              value={task.completed ? 'done' : 'todo'}
+              value={task.status || (task.completed ? 'done' : 'todo')}
               onValueChange={handleStatusChange}
               disabled={statusUpdating}
             >
@@ -156,6 +155,7 @@ export default function TaskDetail() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todo">To Do</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="done">Done</SelectItem>
               </SelectContent>
             </Select>

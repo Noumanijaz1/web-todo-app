@@ -275,7 +275,7 @@ export default function Dashboard() {
             ) : (
               upcomingDeadlines.map((todo) => (
                 <div
-                  key={todo._id}
+                  key={todo.id}
                   className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
                 >
                   <div className="min-w-0 flex-1">
