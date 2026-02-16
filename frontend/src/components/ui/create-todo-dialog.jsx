@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from './dialog'
 import { AlertCircle, Loader2, Calendar as CalendarIcon } from 'lucide-react'
-import usersAPI from '../../api/users'
+import { usersAPI } from '../../api/users'
 
 export function CreateTodoDialog({ open, onClose, onSubmit, loading = false, initialData = null, isEditing = false, isAdmin = false }) {
   const [formData, setFormData] = useState({

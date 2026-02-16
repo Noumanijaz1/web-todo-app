@@ -4,6 +4,25 @@ const User = require('../models/user');
 
 const router = express.Router();
 
+// Search users by name or email (any authenticated user, for adding team members etc.)
+router.get('/search', protect, async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+    const users = await User.find({
+      $or: [
+        { name: new RegExp(q, 'i') },
+        { email: new RegExp(q, 'i') }
+      ]
+    }).select('_id name email').limit(10);
+    res.status(200).json({ success: true, data: users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get all users (admin only)
 router.get('/', protect, async (req, res) => {
   try {

@@ -12,10 +12,12 @@ app.use(express.json());
 const authRoutes = require('./routes/auth');
 const todosRoutes = require('./routes/todos');
 const usersRoutes = require('./routes/users');
+const teamsRoutes = require('./routes/teams');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/todos', todosRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/teams', teamsRoutes);
 
 const { errorHandler } = require('./middleware/errorHandler');
 app.use(errorHandler);

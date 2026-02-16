@@ -1,0 +1,552 @@
+import { useState, useEffect, useContext, useMemo } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Plus, MoreVertical, Edit2, Trash2, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { todosAPI } from '@/api/todos'
+import { AuthContext } from '@/context/AuthContext'
+import CreateTodoDialog from '@/components/ui/create-todo-dialog'
+import { cn } from '@/lib/utils'
+
+const PAGE_SIZE = 5
+const TABS = [
+  { id: 'all', label: 'All Tasks' },
+  { id: 'assigned', label: 'Assigned to me' },
+  { id: 'shared', label: 'Shared' },
+]
+
+function StatusBadge({ completed }) {
+  if (completed) {
+    return (
+      <Badge className="bg-green-100 text-green-800 border-0 font-medium text-xs">
+        Done
+      </Badge>
+    )
+  }
+  return (
+    <Badge className="bg-muted text-muted-foreground border-0 font-medium text-xs">
+      To Do
+    </Badge>
+  )
+}
+
+function PriorityBadge({ priority }) {
+  const p = (priority || 'medium').toUpperCase()
+  const style =
+    p === 'HIGH'
+      ? 'bg-red-500 text-white border-0'
+      : p === 'MEDIUM'
+        ? 'bg-blue-500 text-white border-0'
+        : 'bg-green-500 text-white border-0'
+  return (
+    <Badge className={cn('font-medium text-xs', style)}>
+      {p}
+    </Badge>
+  )
+}
+
+function formatDueDate(dueDate, completed) {
+  if (!dueDate) return '—'
+  const d = new Date(dueDate)
+  const now = new Date()
+  if (!completed && d < now) {
+    return (
+      <span className="text-destructive font-medium">
+        Overdue ({d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+      </span>
+    )
+  }
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function AssigneeCell() {
+  const { user } = useContext(AuthContext)
+  const initial = user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || '?'
+  return (
+    <div className="flex items-center">
+      <div className="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+        {initial}
+      </div>
+    </div>
+  )
+}
+
+function Todos() {
+  const [todos, setTodos] = useState([])
+  const [activeTab, setActiveTab] = useState('all')
+  const [filterProject, setFilterProject] = useState('all')
+  const [filterPriority, setFilterPriority] = useState('all')
+  const [filterAssignee, setFilterAssignee] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [currentPage, setCurrentPage] = useState(1)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [editingTodo, setEditingTodo] = useState(null)
+  const [creating, setCreating] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+  const [actionOpenId, setActionOpenId] = useState(null)
+  const { user } = useContext(AuthContext)
+  const isAdmin = user?.role === 'admin'
+
+  useEffect(() => {
+    const fetchTodos = async () => {
+      try {
+        const data = await todosAPI.getTodos()
+        setTodos(data)
+      } catch (err) {
+        console.error('Failed to fetch todos:', err)
+      }
+    }
+    fetchTodos()
+  }, [])
+
+  useEffect(() => {
+    const onRefresh = () => {
+      todosAPI.getTodos().then(setTodos).catch(() => {})
+    }
+    window.addEventListener('todos-refresh', onRefresh)
+    return () => window.removeEventListener('todos-refresh', onRefresh)
+  }, [])
+
+  const filteredTodos = useMemo(() => {
+    let list = todos
+    if (activeTab === 'assigned' || activeTab === 'shared') {
+      list = list
+    }
+    if (filterPriority !== 'all') {
+      list = list.filter((t) => (t.priority || 'medium') === filterPriority)
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      list = list.filter(
+        (t) =>
+          t.title?.toLowerCase().includes(q) ||
+          (t.description && t.description.toLowerCase().includes(q))
+      )
+    }
+    return list
+  }, [todos, activeTab, filterPriority, searchQuery])
+
+  const totalFiltered = filteredTodos.length
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE))
+  const start = (currentPage - 1) * PAGE_SIZE
+  const pageTodos = filteredTodos.slice(start, start + PAGE_SIZE)
+
+  const handleCreateTodoDialog = async (formData) => {
+    setCreating(true)
+    try {
+      const dueDate = formData.dueDate ? new Date(formData.dueDate) : null
+      const newTodo = await todosAPI.createTodo(
+        formData.title,
+        formData.description,
+        formData.priority,
+        dueDate
+      )
+      setTodos([...todos, newTodo])
+      setShowCreateDialog(false)
+    } catch (err) {
+      console.error('Failed to create todo:', err)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleEditTodoDialog = async (formData) => {
+    if (!editingTodo) return
+    setCreating(true)
+    try {
+      const dueDate = formData.dueDate ? new Date(formData.dueDate) : null
+      const updatedTodo = await todosAPI.updateTodo(editingTodo._id, {
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        dueDate: dueDate,
+      })
+      setTodos(todos.map((t) => (t._id === editingTodo._id ? updatedTodo : t)))
+      setShowEditDialog(false)
+      setEditingTodo(null)
+    } catch (err) {
+      console.error('Failed to update todo:', err)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleDeleteTodo = async (id) => {
+    try {
+      await todosAPI.deleteTodo(id)
+      setTodos(todos.filter((t) => t._id !== id))
+      setSelectedIds((s) => {
+        const next = new Set(s)
+        next.delete(id)
+        return next
+      })
+      setDeleteConfirmId(null)
+    } catch (err) {
+      console.error('Failed to delete todo:', err)
+    }
+  }
+
+  const handleToggleComplete = async (id) => {
+    try {
+      const todo = todos.find((t) => t._id === id)
+      const updated = await todosAPI.updateTodo(id, { completed: !todo.completed })
+      setTodos(todos.map((t) => (t._id === id ? updated : t)))
+    } catch (err) {
+      console.error('Failed to update todo:', err)
+    }
+  }
+
+  const toggleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedIds(new Set(pageTodos.map((t) => t._id)))
+    } else {
+      setSelectedIds(new Set())
+    }
+  }
+
+  const toggleSelectOne = (id) => {
+    setSelectedIds((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const allSelected = pageTodos.length > 0 && pageTodos.every((t) => selectedIds.has(t._id))
+
+  return (
+    <>
+      <div className="space-y-5">
+        {/* Tabs */}
+        <div className="border-b border-border">
+          <div className="flex items-center gap-1 text-sm">
+            <span className="font-medium text-muted-foreground mr-4">Tasks</span>
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'px-4 py-3 font-medium border-b-2 -mb-px transition-colors',
+                  activeTab === tab.id
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Title + Add Task */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-foreground">
+            All Tasks ({totalFiltered})
+          </h1>
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Task
+          </Button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Select value={filterProject} onValueChange={setFilterProject}>
+            <SelectTrigger className="w-[140px] bg-white border border-input">
+              <SelectValue placeholder="Project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterPriority} onValueChange={setFilterPriority}>
+            <SelectTrigger className="w-[130px] bg-white border border-input">
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+            <SelectTrigger className="w-[140px] bg-white border border-input">
+              <SelectValue placeholder="Assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="relative flex-1 min-w-[200px] max-w-sm ml-auto">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Filter tasks by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-white border border-input"
+            />
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="rounded-lg border border-border bg-white shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/40">
+                  <th className="text-left py-3 px-4 w-10">
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground uppercase tracking-wide">
+                    Task name
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground uppercase tracking-wide w-24">
+                    Assignee
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground uppercase tracking-wide w-24">
+                    Priority
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground uppercase tracking-wide w-24">
+                    Status
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground uppercase tracking-wide w-28">
+                    Due date
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground uppercase tracking-wide w-14">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageTodos.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                      No tasks found.
+                    </td>
+                  </tr>
+                ) : (
+                  pageTodos.map((todo) => (
+                    <tr
+                      key={todo._id}
+                      className={cn(
+                        'border-b border-border last:border-b-0 transition-colors',
+                        selectedIds.has(todo._id) && 'bg-primary/5'
+                      )}
+                    >
+                      <td className="py-3 px-4">
+                        <Checkbox
+                          checked={selectedIds.has(todo._id)}
+                          onCheckedChange={() => toggleSelectOne(todo._id)}
+                          aria-label={`Select ${todo.title}`}
+                        />
+                      </td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <p
+                            className={cn(
+                              'font-medium',
+                              todo.completed && 'line-through text-muted-foreground'
+                            )}
+                          >
+                            {todo.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {todo.description || 'My Tasks'}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <AssigneeCell />
+                      </td>
+                      <td className="py-3 px-4">
+                        <PriorityBadge priority={todo.priority} />
+                      </td>
+                      <td className="py-3 px-4">
+                        <StatusBadge completed={todo.completed} />
+                      </td>
+                      <td className="py-3 px-4 text-muted-foreground">
+                        {formatDueDate(todo.dueDate, todo.completed)}
+                      </td>
+                      <td className="py-3 px-4">
+                        {isAdmin && (
+                          <Popover
+                            open={actionOpenId === todo._id}
+                            onOpenChange={(open) => setActionOpenId(open ? todo._id : null)}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                aria-label="Actions"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-48 p-1" align="end">
+                              <div className="flex flex-col">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="justify-start"
+                                  onClick={() => {
+                                    handleToggleComplete(todo._id)
+                                    setActionOpenId(null)
+                                  }}
+                                >
+                                  {todo.completed ? 'Mark as To Do' : 'Mark as Done'}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="justify-start"
+                                  onClick={() => {
+                                    setEditingTodo(todo)
+                                    setShowEditDialog(true)
+                                    setActionOpenId(null)
+                                  }}
+                                >
+                                  <Edit2 className="h-4 w-4 mr-2" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="justify-start text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    setDeleteConfirmId(todo._id)
+                                    setActionOpenId(null)
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </Button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Pagination */}
+        {totalFiltered > 0 && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {start + 1}-{Math.min(start + PAGE_SIZE, totalFiltered)} of {totalFiltered} tasks
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <CreateTodoDialog
+        open={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+        onSubmit={handleCreateTodoDialog}
+        loading={creating}
+      />
+
+      {editingTodo && (
+        <CreateTodoDialog
+          open={showEditDialog}
+          onClose={() => {
+            setShowEditDialog(false)
+            setEditingTodo(null)
+          }}
+          onSubmit={handleEditTodoDialog}
+          loading={creating}
+          initialData={{
+            title: editingTodo.title,
+            description: editingTodo.description || '',
+            priority: editingTodo.priority || 'medium',
+            dueDate: editingTodo.dueDate
+              ? new Date(editingTodo.dueDate).toISOString().split('T')[0]
+              : '',
+          }}
+          isEditing
+        />
+      )}
+
+      <AlertDialog
+        open={!!deleteConfirmId}
+        onOpenChange={(open) => !open && setDeleteConfirmId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex justify-end gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteConfirmId && handleDeleteTodo(deleteConfirmId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
+export default Todos

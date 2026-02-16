@@ -8,8 +8,13 @@ import {
 import { AuthProvider, AuthContext } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import Todos from "./pages/Todos";
-import AdminDashboard from "./pages/AdminDashboard";
+import Tasks from "./pages/Tasks";
+import Dashboard from "./pages/Dashboard";
+import Projects from "./pages/Projects";
+import Teams from "./pages/Teams";
+import TeamDetails from "./pages/TeamDetails";
+import Settings from "./pages/Settings";
+import AppLayout from "./components/layout/AppLayout";
 
 function ProtectedRoute({ children }) {
   const { token } = useContext(AuthContext);
@@ -24,22 +29,22 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route
-            path="/todos"
+            path="/"
             element={
               <ProtectedRoute>
-                <Todos />
+                <AppLayout />
               </ProtectedRoute>
             }
-          />
-          <Route
-            path="/admin-dashboard"
-            element={
-              <ProtectedRoute>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<Navigate to="/todos" replace />} />
+          >
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="tasks" element={<Tasks />} />
+            <Route path="projects" element={<Projects />} />
+            <Route path="teams" element={<Teams />} />
+            <Route path="teams/:teamId" element={<TeamDetails />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

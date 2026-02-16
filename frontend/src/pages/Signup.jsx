@@ -56,7 +56,7 @@ function Signup() {
     try {
       const data = await authAPI.signup(formData.name, formData.email, formData.password)
       login(data.user, data.token)
-      navigate('/todos')
+      navigate('/dashboard')
     } catch (err) {
       setError(err.response?.data?.message || 'Signup failed. Please try again.')
     } finally {
