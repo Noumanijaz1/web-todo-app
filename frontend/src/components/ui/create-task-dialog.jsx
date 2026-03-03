@@ -47,9 +47,11 @@ export function CreateTaskDialog({
   initialData = null,
   isEditing = false,
   isAdmin = false,
+  canAssign = null,
   projects = [],
   defaultProjectId,
 }) {
+  const canAssignUsers = canAssign !== null ? canAssign : isAdmin
   const [formData, setFormData] = useState({
     title: initialData?.title ?? '',
     description: initialData?.description ?? '',
@@ -66,10 +68,10 @@ export function CreateTaskDialog({
   const fileInputRef = useRef(null)
 
   useEffect(() => {
-    if (open && isAdmin) {
+    if (open && canAssignUsers) {
       usersAPI.getAll().then((d) => setUsers(Array.isArray(d) ? d : [])).catch(() => setUsers([]))
     }
-  }, [open, isAdmin])
+  }, [open, canAssignUsers])
 
   const [prevInitialData, setPrevInitialData] = useState(initialData)
   if (prevInitialData !== initialData && initialData) {
@@ -276,7 +278,7 @@ export function CreateTaskDialog({
               </div>
               <div>
                 <Label className="block text-sm font-semibold mb-2">Assignee</Label>
-                {isAdmin ? (
+                {canAssignUsers ? (
                   <div className="flex items-center gap-3 w-full rounded-lg border border-input bg-background px-3 py-2.5 h-11">
                     <div className="size-7 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
                       <span className="text-[10px] font-bold">{assigneeInitial}</span>
@@ -306,7 +308,7 @@ export function CreateTaskDialog({
                     <div className="size-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
                       ?
                     </div>
-                    Only admins can assign
+                    Only Admin or Project Manager can assign
                   </div>
                 )}
               </div>

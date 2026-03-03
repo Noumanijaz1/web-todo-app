@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react'
 import { AuthContext } from '@/context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { Search, Bell, LogOut } from 'lucide-react'
+import { Search, Bell, LogOut, User } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
 const Header = () => {
@@ -61,6 +61,17 @@ const Header = () => {
                                         <p className="font-medium text-sm truncate">{user?.name || 'User'}</p>
                                         <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                                     </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowUserMenu(false)
+                                            navigate('/profile')
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    >
+                                        <User className="h-4 w-4" />
+                                        Profile
+                                    </button>
                                     <button
                                         type="button"
                                         onClick={handleLogout}

@@ -23,6 +23,10 @@ const projectSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    projectManagerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
     dueDate: {
       type: Date,
     },

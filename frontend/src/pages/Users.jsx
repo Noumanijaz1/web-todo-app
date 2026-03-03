@@ -31,7 +31,14 @@ export default function Users() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const isAdmin = user?.role === 'admin'
+  const effectiveRole = user?.role === 'user' ? 'employee' : user?.role
+  const isAdmin = effectiveRole === 'admin'
+
+  const roleLabel = (r) => {
+    if (r === 'admin') return 'Admin'
+    if (r === 'project_manager') return 'Project Manager'
+    return 'Employee'
+  }
 
   const fetchUsers = async () => {
     if (!isAdmin) return
@@ -98,11 +105,7 @@ export default function Users() {
   }
 
   if (!user) return null
-  if (!isAdmin) {
-    return (
-      <Navigate to="/dashboard" replace />
-    )
-  }
+  if (!isAdmin) return <Navigate to="/dashboard" replace />
 
   return (
     <div className="space-y-6">
@@ -158,17 +161,17 @@ export default function Users() {
                       <td className="p-3 text-muted-foreground">{u.email}</td>
                       <td className="p-3">
                         <Badge
-                          variant={u.role === 'admin' ? 'default' : 'secondary'}
+                          variant={(u.role === 'user' ? 'employee' : u.role) === 'admin' ? 'default' : 'secondary'}
                           className={cn(
-                            u.role === 'admin' && 'bg-primary/90'
+                            (u.role === 'user' ? 'employee' : u.role) === 'admin' && 'bg-primary/90'
                           )}
                         >
-                          {u.role === 'admin' ? (
+                          {(u.role === 'user' ? 'employee' : u.role) === 'admin' ? (
                             <Shield className="h-3 w-3 mr-1 inline" />
                           ) : (
                             <User className="h-3 w-3 mr-1 inline" />
                           )}
-                          {u.role}
+                          {roleLabel(u.role === 'user' ? 'employee' : u.role)}
                         </Badge>
                       </td>
                       <td className="p-3 text-right">

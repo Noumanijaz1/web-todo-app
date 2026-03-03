@@ -1,6 +1,8 @@
 const Team = require('../models/team');
 const User = require('../models/user');
 
+const role = (req) => req.user?.effectiveRole ?? req.user?.role;
+
 exports.getTeam = async (req, res, next) => {
   try {
     const team = await Team.findById(req.params.id)
@@ -17,9 +19,9 @@ exports.getTeam = async (req, res, next) => {
 
 exports.getTeams = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const r = role(req);
     let teams;
-    if (user.role === 'admin') {
+    if (r === 'admin') {
       teams = await Team.find({})
         .populate('members', 'name email')
         .populate('createdBy', 'name email')
@@ -38,6 +40,9 @@ exports.getTeams = async (req, res, next) => {
 
 exports.createTeam = async (req, res, next) => {
   try {
+    if (role(req) !== 'admin') {
+      return res.status(403).json({ message: 'Only Admin can create teams' });
+    }
     const team = await Team.create({
       ...req.body,
       createdBy: req.user.id,

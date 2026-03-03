@@ -21,6 +21,21 @@ export const usersAPI = {
     });
     return response.data?.data ?? [];
   },
+  getMe: async () => {
+    const response = await axios.get(`${API_BASE}/users/me`, {
+      headers: getAuthHeader(),
+    });
+    return response.data?.data ?? null;
+  },
+  updateMe: async (formData) => {
+    const response = await axios.put(`${API_BASE}/users/me`, formData, {
+      headers: {
+        ...getAuthHeader(),
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data?.data ?? null;
+  },
   getById: async (id) => {
     const response = await axios.get(`${API_BASE}/users/${id}`, {
       headers: getAuthHeader(),

@@ -45,11 +45,13 @@ const sidebarConfig = {
 }
 
 const getNavItems = (role) => {
-  return sidebarConfig[role] || []
+  const r = role === 'user' ? 'employee' : role
+  return sidebarConfig[r] || sidebarConfig.employee || []
 }
 
 const Sidebar = () => {
   const { user } = useContext(AuthContext)
+  const effectiveRole = user?.role === 'user' ? 'employee' : user?.role
 
   return (
     <aside className="w-56 bg-white border-r border-border shadow-sm flex flex-col fixed left-0 top-0 h-full z-30">
@@ -73,7 +75,7 @@ const Sidebar = () => {
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-0.5">
-        {getNavItems(user?.role).map(({ to, icon: Icon, label }) => (
+        {getNavItems(effectiveRole).map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
@@ -94,7 +96,7 @@ const Sidebar = () => {
       </nav>
 
       {/* Bottom Button (Only Admin & Project Manager) */}
-      {(user?.role === 'admin' || user?.role === 'project_manager') && (
+      {(effectiveRole === 'admin' || effectiveRole === 'project_manager') && (
         <div className="p-3 border-t border-border space-y-1">
           <Button className="w-full justify-start" size="sm" asChild>
             <Link to="/projects">

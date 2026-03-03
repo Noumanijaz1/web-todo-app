@@ -39,6 +39,9 @@ const STATUS_OPTIONS = [
 export default function TaskDetail() {
   const { taskId } = useParams()
   const { user } = useContext(AuthContext)
+  const effectiveRole = user?.role === 'user' ? 'employee' : user?.role
+  const isAdmin = effectiveRole === 'admin'
+  const isAdminOrPM = effectiveRole === 'admin' || effectiveRole === 'project_manager'
   const [task, setTask] = useState(null)
   const [loading, setLoading] = useState(true)
   const [commentText, setCommentText] = useState('')
@@ -445,21 +448,23 @@ export default function TaskDetail() {
             </button>
           </div>
 
-          {/* Danger Zone */}
-          <div className="p-4 border border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-900/10 rounded-xl flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase">Manage Task</p>
-              <p className="text-[10px] text-red-500 dark:text-red-400/80">Archive or delete this task forever</p>
+          {/* Danger Zone (Admin only) */}
+          {isAdmin && (
+            <div className="p-4 border border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-900/10 rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase">Manage Task</p>
+                <p className="text-[10px] text-red-500 dark:text-red-400/80">Archive or delete this task forever</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeleteDialog(true)}
+                className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 p-2 rounded-lg transition-colors"
+                aria-label="Delete task"
+              >
+                <span className="material-symbols-outlined">delete_forever</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowDeleteDialog(true)}
-              className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 p-2 rounded-lg transition-colors"
-              aria-label="Delete task"
-            >
-              <span className="material-symbols-outlined">delete_forever</span>
-            </button>
-          </div>
+          )}
         </aside>
       </div>
 
@@ -471,7 +476,8 @@ export default function TaskDetail() {
         loading={false}
         initialData={task}
         isEditing
-        isAdmin
+        isAdmin={isAdmin}
+        canAssign={isAdminOrPM}
         projects={projects}
       />
 

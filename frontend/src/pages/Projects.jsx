@@ -72,6 +72,8 @@ const MAX_DESCRIPTION_LENGTH = 500
 
 export default function Projects() {
   const { user } = useContext(AuthContext)
+  const effectiveRole = user?.role === 'user' ? 'employee' : user?.role
+  const canCreateProject = effectiveRole === 'admin' || effectiveRole === 'project_manager'
   const [projects, setProjects] = useState([])
   const [todos, setTodos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -200,14 +202,16 @@ export default function Projects() {
             Monitor status, progress, and team assignments across all initiatives.
           </p>
         </div>
-        <Button
-          onClick={() => setCreateDialogOpen(true)}
-          className="flex items-center gap-2 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg hover:-translate-y-0.5 active:translate-y-0"
-          style={{ backgroundColor: PROJECT_PAGE_PRIMARY }}
-        >
-          <span className="material-symbols-outlined text-xl">add</span>
-          <span>Create Project</span>
-        </Button>
+        {canCreateProject && (
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+            className="flex items-center gap-2 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+            style={{ backgroundColor: PROJECT_PAGE_PRIMARY }}
+          >
+            <span className="material-symbols-outlined text-xl">add</span>
+            <span>Create Project</span>
+          </Button>
+        )}
       </div>
 
       {/* Filters & Status Tabs */}

@@ -9,6 +9,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxlength: [50, 'Name cannot exceed 50 characters']
     },
+    phone: {
+      type: String,
+      trim: true,
+      maxlength: [20, 'Phone number cannot exceed 20 characters']
+    },
     email: {
       type: String,
       required: [true, 'Please provide an email'],
@@ -22,10 +27,17 @@ const userSchema = new mongoose.Schema(
       minlength: [6, 'Password must be at least 6 characters'],
       select: false
     },
+    dob: {
+      type: Date
+    },
+    profileImage: {
+      type: String,
+      default: null
+    },
     role: {
       type: String,
-      enum: ['user', 'admin'],
-      default: 'user'
+      enum: ['admin', 'project_manager', 'employee', 'user'], // 'user' kept for backward compatibility (treated as employee)
+      default: 'employee'
     }
   },
   { timestamps: true }

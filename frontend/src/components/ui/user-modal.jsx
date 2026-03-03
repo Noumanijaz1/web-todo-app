@@ -25,7 +25,7 @@ const UserModal = ({ open, onClose, onSubmit, mode = 'create', initialData = nul
     name: '',
     email: '',
     password: '',
-    role: 'user',
+    role: 'employee',
   });
 
   useEffect(() => {
@@ -35,10 +35,10 @@ const UserModal = ({ open, onClose, onSubmit, mode = 'create', initialData = nul
           name: initialData.name ?? '',
           email: initialData.email ?? '',
           password: '',
-          role: initialData.role ?? 'user',
+          role: initialData.role === 'user' ? 'employee' : (initialData.role ?? 'employee'),
         });
       } else {
-        setForm({ name: '', email: '', password: '', role: 'user' });
+        setForm({ name: '', email: '', password: '', role: 'employee' });
       }
     }
   }, [open, isEdit, initialData]);
@@ -126,8 +126,9 @@ const UserModal = ({ open, onClose, onSubmit, mode = 'create', initialData = nul
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="project_manager">Project Manager</SelectItem>
+                  <SelectItem value="employee">Employee</SelectItem>
                 </SelectContent>
               </Select>
             </div>

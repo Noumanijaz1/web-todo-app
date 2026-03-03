@@ -130,7 +130,9 @@ export default function Tasks() {
   const [uploadingFile, setUploadingFile] = useState(false)
 
   const { user } = useContext(AuthContext)
-  const isAdmin = user?.role === 'admin'
+  const effectiveRole = user?.role === 'user' ? 'employee' : user?.role
+  const isAdmin = effectiveRole === 'admin'
+  const isAdminOrPM = effectiveRole === 'admin' || effectiveRole === 'project_manager'
   const userId = user?.id || user?._id
 
   useEffect(() => {
@@ -152,10 +154,10 @@ export default function Tasks() {
 
   useEffect(() => {
     projectsAPI.getAll().then((d) => setProjects(Array.isArray(d) ? d : [])).catch(() => {})
-    if (isAdmin) {
+    if (isAdminOrPM) {
       usersAPI.getAll().then((d) => setUsers(Array.isArray(d) ? d : [])).catch(() => {})
     }
-  }, [isAdmin])
+  }, [isAdminOrPM])
 
   useEffect(() => {
     const onRefresh = () => {
@@ -405,7 +407,7 @@ export default function Tasks() {
                       ))}
                     </SelectContent>
                   </Select>
-                  {isAdmin && (
+                  {isAdminOrPM && (
                     <Select value={filterAssignee} onValueChange={setFilterAssignee}>
                       <SelectTrigger className="w-auto min-w-[120px] flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:border-primary/50 transition-colors h-auto">
                         <SelectValue placeholder="User" />
@@ -806,6 +808,7 @@ export default function Tasks() {
         onSubmit={handleCreateTask}
         loading={creating}
         isAdmin={isAdmin}
+        canAssign={isAdminOrPM}
         projects={projects}
         defaultProjectId={filterProject && filterProject !== 'all' ? filterProject : undefined}
       />
@@ -820,6 +823,7 @@ export default function Tasks() {
           onSubmit={handleEditTask}
           loading={creating}
           isAdmin={isAdmin}
+          canAssign={isAdminOrPM}
           projects={projects}
           initialData={{
             title: editingTodo.title,
