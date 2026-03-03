@@ -1,8 +1,12 @@
-import React, { useContext, useState } from 'react'
+import React, { useContext, useState, useMemo } from 'react'
 import { AuthContext } from '@/context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { Search, Bell, LogOut, User } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+
+const API_BASE_URL = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '')
+  : 'http://localhost:3000'
 
 const Header = () => {
     const { logout, user } = useContext(AuthContext)
@@ -14,9 +18,18 @@ const Header = () => {
         navigate('/login')
     }
     const initial = user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'
+
+    const profileImageUrl = useMemo(() => {
+      if (!user?.profileImage) return null
+      if (user.profileImage.startsWith('http')) return user.profileImage
+      if (user.profileImage.startsWith('/uploads/')) {
+        return `${API_BASE_URL}${user.profileImage}`
+      }
+      return `${API_BASE_URL}/uploads/${user.profileImage}`
+    }, [user])
     return (
-        <header className="sticky top-0 z-20 bg-white border-b border-border shadow-sm">
-            <div className="flex items-center justify-between gap-4 px-6 py-4">
+        <header className="sticky top-0 z-20 bg-white border-b border-border px-6 py-6 ">
+            <div className="flex items-center justify-between gap-4 ">
                 <div className="flex-1 flex items-center gap-4 max-w-2xl">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -43,11 +56,19 @@ const Header = () => {
                         <button
                             type="button"
                             onClick={() => setShowUserMenu(!showUserMenu)}
-                            className="flex items-center gap-2 p-1.5 rounded-full hover:bg-muted"
+                            className="flex items-center gap-2  rounded-full hover:bg-muted"
                         >
-                            <div className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center font-semibold text-sm">
-                                {initial}
-                            </div>
+                            {profileImageUrl ? (
+                              <img
+                                src={profileImageUrl}
+                                alt={user?.name || 'Profile'}
+                                className="w-9 h-9 rounded-full object-cover border border-border"
+                              />
+                            ) : (
+                              <div className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center font-semibold text-sm">
+                                  {initial}
+                              </div>
+                            )}
                         </button>
                         {showUserMenu && (
                             <>

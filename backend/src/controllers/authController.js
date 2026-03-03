@@ -24,7 +24,7 @@ exports.signup = async (req, res, next) => {
 
     const user = await User.create({ name, email, password });
     const token = generateToken(user._id);
-    res.status(201).json({ user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
+    res.status(201).json({ user: { id: user._id, name: user.name, email: user.email, role: user.role, designation: user.designation }, token });
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({ message: 'Email already registered' });
@@ -47,7 +47,7 @@ exports.login = async (req, res, next) => {
     const isMatch = await user.matchPassword(password);
     if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
     const token = generateToken(user._id);
-    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
+    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role, designation: user.designation }, token });
   } catch (err) {
     next(err);
   }

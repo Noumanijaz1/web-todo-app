@@ -1,8 +1,16 @@
 import { useContext, useEffect, useState, useMemo } from 'react'
+import { format } from 'date-fns'
 import { AuthContext } from '@/context/AuthContext'
 import { usersAPI } from '@/api/users'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Calendar as CalendarIcon } from 'lucide-react'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '')
@@ -55,6 +63,7 @@ export default function Profile() {
             phone: me.phone,
             dob: me.dob,
             profileImage: me.profileImage,
+            designation: me.designation,
           }))
         }
       } catch (e) {
@@ -132,18 +141,17 @@ export default function Profile() {
       </header>
 
       <div className="bg-card border border-border rounded-xl shadow-sm p-6 space-y-6">
-        <div className="flex items-center gap-6">
-          <div className=" size-24 rounded-full overflow-hidden">
+        <div className="flex items-start gap-6">
+          {/* ensure avatar container never grows or shrinks */}
+          <div className="flex-none shrink-0 w-24 h-24 rounded-full overflow-hidden flex items-center justify-center bg-muted" style={{ width: '96px', height: '96px' }}>
             {profileImageUrl ? (
               <img
                 src={profileImageUrl}
                 alt={user?.name || 'Profile'}
-                width={96}
-                height={96}
-                className="size-full object-cover border border-border"
+                className="w-full h-full object-cover"
               />
             ) : (
-              <div className="size-24 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-semibold">
+              <div className="w-full h-full rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-semibold">
                 {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
               </div>
             )}
@@ -152,6 +160,11 @@ export default function Profile() {
             <p className="text-sm font-medium text-foreground">
               {user?.name || 'User'}
             </p>
+            {user?.designation && (
+              <p className="text-xs text-muted-foreground">
+                {user.designation}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               {effectiveUserId ? `User ID: ${effectiveUserId}` : null}
             </p>
@@ -216,15 +229,39 @@ export default function Profile() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
+              <label className="text-xs font-medium text-muted-foreground block">
                 Date of birth
               </label>
-              <Input
-                type="date"
-                name="dob"
-                value={form.dob}
-                onChange={handleChange}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal h-10 rounded-lg"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    {form.dob
+                      ? format(new Date(form.dob), 'PPP')
+                      : 'Select date of birth'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.dob ? new Date(form.dob) : undefined}
+                    onSelect={(date) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        dob: date ? format(date, 'yyyy-MM-dd') : '',
+                      }))
+                    }
+                    captionLayout="dropdown-buttons"
+                    fromYear={1950}
+                    toYear={new Date().getFullYear()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

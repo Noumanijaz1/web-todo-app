@@ -9,7 +9,6 @@ import {
 } from './dialog';
 import { Input } from './input';
 import { Button } from './button';
-import { Form } from './form';
 import { Label } from './label';
 import {
   Select,
@@ -26,6 +25,7 @@ const UserModal = ({ open, onClose, onSubmit, mode = 'create', initialData = nul
     email: '',
     password: '',
     role: 'employee',
+    designation: '',
   });
 
   useEffect(() => {
@@ -36,9 +36,10 @@ const UserModal = ({ open, onClose, onSubmit, mode = 'create', initialData = nul
           email: initialData.email ?? '',
           password: '',
           role: initialData.role === 'user' ? 'employee' : (initialData.role ?? 'employee'),
+          designation: initialData.designation ?? '',
         });
       } else {
-        setForm({ name: '', email: '', password: '', role: 'employee' });
+        setForm({ name: '', email: '', password: '', role: 'employee', designation: '' });
       }
     }
   }, [open, isEdit, initialData]);
@@ -55,12 +56,12 @@ const UserModal = ({ open, onClose, onSubmit, mode = 'create', initialData = nul
   const handleSubmit = (e) => {
     e.preventDefault();
     if (isEdit) {
-      const payload = { name: form.name, email: form.email, role: form.role };
+      const payload = { name: form.name, email: form.email, role: form.role, designation: form.designation };
       if (form.password.trim()) payload.password = form.password;
       onSubmit(payload);
     } else {
       if (!form.password.trim()) return;
-      onSubmit({ name: form.name, email: form.email, password: form.password, role: form.role });
+      onSubmit({ name: form.name, email: form.email, password: form.password, role: form.role, designation: form.designation });
     }
   };
 
@@ -75,7 +76,7 @@ const UserModal = ({ open, onClose, onSubmit, mode = 'create', initialData = nul
               : 'Add a new user to the workspace.'}
           </DialogDescription>
         </DialogHeader>
-        <Form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="name">Name</Label>
@@ -132,6 +133,16 @@ const UserModal = ({ open, onClose, onSubmit, mode = 'create', initialData = nul
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="designation">Designation</Label>
+              <Input
+                id="designation"
+                name="designation"
+                value={form.designation}
+                onChange={handleChange}
+                placeholder="e.g. Frontend Developer, SQA"
+              />
+            </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
@@ -141,7 +152,7 @@ const UserModal = ({ open, onClose, onSubmit, mode = 'create', initialData = nul
               {loading ? 'Saving...' : isEdit ? 'Update' : 'Create'}
             </Button>
           </DialogFooter>
-        </Form>
+        </form>
       </DialogContent>
     </Dialog>
   );

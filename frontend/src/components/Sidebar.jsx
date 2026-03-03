@@ -54,7 +54,7 @@ const Sidebar = () => {
   const effectiveRole = user?.role === 'user' ? 'employee' : user?.role
 
   return (
-    <aside className="w-56 bg-white border-r border-border shadow-sm flex flex-col fixed left-0 top-0 h-full z-30">
+    <aside className="w-56 bg-white border-r border-border  flex flex-col fixed left-0 top-0 h-full z-30">
 
       {/* Logo Section */}
       <div className="p-5 border-b border-border">

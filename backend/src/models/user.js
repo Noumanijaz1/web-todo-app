@@ -9,6 +9,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxlength: [50, 'Name cannot exceed 50 characters']
     },
+    designation: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Designation cannot exceed 100 characters']
+    },
     phone: {
       type: String,
       trim: true,

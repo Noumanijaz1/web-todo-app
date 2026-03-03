@@ -149,6 +149,7 @@ export default function Users() {
                     <th className="text-left p-3 font-medium">Name</th>
                     <th className="text-left p-3 font-medium">Email</th>
                     <th className="text-left p-3 font-medium">Role</th>
+                    <th className="text-left p-3 font-medium">Designation</th>
                     <th className="text-right p-3 font-medium w-28">Actions</th>
                   </tr>
                 </thead>
@@ -173,6 +174,9 @@ export default function Users() {
                           )}
                           {roleLabel(u.role === 'user' ? 'employee' : u.role)}
                         </Badge>
+                      </td>
+                      <td className="p-3 text-muted-foreground">
+                        {u.designation || '—'}
                       </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1">

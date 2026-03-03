@@ -18,8 +18,6 @@ import { todosAPI } from '@/api/todos'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 
-const PROJECT_PAGE_PRIMARY = '#0b50da'
-
 // Design status tabs: All Projects, Active, Completed, On Hold
 // Backend: on_track, at_risk, completed
 const STATUS_TABS = [
@@ -205,8 +203,7 @@ export default function Projects() {
         {canCreateProject && (
           <Button
             onClick={() => setCreateDialogOpen(true)}
-            className="flex items-center gap-2 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg hover:-translate-y-0.5 active:translate-y-0"
-            style={{ backgroundColor: PROJECT_PAGE_PRIMARY }}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg hover:-translate-y-0.5 active:translate-y-0 bg-primary text-primary-foreground"
           >
             <span className="material-symbols-outlined text-xl">add</span>
             <span>Create Project</span>
@@ -225,10 +222,9 @@ export default function Projects() {
               className={cn(
                 'flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors',
                 statusFilter === tab.value
-                  ? 'text-white'
+                  ? 'bg-primary text-primary-foreground'
                   : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'
               )}
-              style={statusFilter === tab.value ? { backgroundColor: PROJECT_PAGE_PRIMARY } : undefined}
             >
               {tab.label}
             </button>
@@ -311,11 +307,6 @@ export default function Projects() {
                               'size-10 rounded-lg flex items-center justify-center',
                               iconBg
                             )}
-                            style={
-                              iconBg.includes('primary')
-                                ? { color: PROJECT_PAGE_PRIMARY, backgroundColor: `${PROJECT_PAGE_PRIMARY}20` }
-                                : undefined
-                            }
                           >
                             <span className="material-symbols-outlined">{iconName}</span>
                           </div>
@@ -368,12 +359,7 @@ export default function Projects() {
                           <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5">
                             <div
                               className={cn('h-full rounded-full', barColor)}
-                              style={{
-                                width: `${progress}%`,
-                                ...(barColor === 'bg-primary'
-                                  ? { backgroundColor: PROJECT_PAGE_PRIMARY }
-                                  : {}),
-                              }}
+                              style={{ width: `${progress}%` }}
                             />
                           </div>
                         </div>
@@ -382,8 +368,7 @@ export default function Projects() {
                         <div className="flex items-center justify-end gap-3">
                           <Link
                             to={`/tasks?project=${project._id}`}
-                            className="text-xs font-bold flex items-center gap-1"
-                            style={{ color: PROJECT_PAGE_PRIMARY }}
+                            className="text-xs font-bold flex items-center gap-1 text-primary"
                           >
                             <span className="material-symbols-outlined text-sm">assignment</span>
                             Tasks
@@ -437,19 +422,14 @@ export default function Projects() {
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <Button
                   key={page}
-                  variant="outline"
+                  variant={currentPage === page ? 'default' : 'outline'}
                   size="sm"
                   className={cn(
                     'rounded px-3 py-1',
                     currentPage === page
-                      ? 'border-white text-white'
+                      ? 'bg-primary text-primary-foreground'
                       : 'border-slate-200 dark:border-slate-700'
                   )}
-                  style={
-                    currentPage === page
-                      ? { backgroundColor: PROJECT_PAGE_PRIMARY, borderColor: PROJECT_PAGE_PRIMARY }
-                      : undefined
-                  }
                   onClick={() => setCurrentPage(page)}
                 >
                   {page}
@@ -476,12 +456,7 @@ export default function Projects() {
             <span className="text-slate-500 text-sm font-medium uppercase tracking-wider">
               Overall Completion
             </span>
-            <span
-              className="material-symbols-outlined"
-              style={{ color: PROJECT_PAGE_PRIMARY }}
-            >
-              donut_large
-            </span>
+            <span className="material-symbols-outlined text-primary">donut_large</span>
           </div>
           <div className="flex flex-col gap-2">
             <div className="flex items-end justify-between">
@@ -495,10 +470,7 @@ export default function Projects() {
             <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2">
               <div
                 className="h-full rounded-full bg-primary"
-                style={{
-                  width: `${overallCompletion}%`,
-                  backgroundColor: PROJECT_PAGE_PRIMARY,
-                }}
+                style={{ width: `${overallCompletion}%` }}
               />
             </div>
           </div>
@@ -508,12 +480,7 @@ export default function Projects() {
             <span className="text-slate-500 text-sm font-medium uppercase tracking-wider">
               Active Projects
             </span>
-            <span
-              className="material-symbols-outlined"
-              style={{ color: PROJECT_PAGE_PRIMARY }}
-            >
-              sprint
-            </span>
+            <span className="material-symbols-outlined text-primary">sprint</span>
           </div>
           <div className="flex items-end justify-between">
             <span className="text-3xl font-black text-slate-900 dark:text-white">
@@ -529,12 +496,7 @@ export default function Projects() {
             <span className="text-slate-500 text-sm font-medium uppercase tracking-wider">
               Efficiency Score
             </span>
-            <span
-              className="material-symbols-outlined"
-              style={{ color: PROJECT_PAGE_PRIMARY }}
-            >
-              bolt
-            </span>
+            <span className="material-symbols-outlined text-primary">bolt</span>
           </div>
           <div className="flex items-end justify-between">
             <span className="text-3xl font-black text-slate-900 dark:text-white">92</span>
@@ -544,9 +506,7 @@ export default function Projects() {
           </div>
           <p className="text-sm text-slate-500">
             Your team is performing{' '}
-            <span className="font-bold" style={{ color: PROJECT_PAGE_PRIMARY }}>
-              2.2% above
-            </span>{' '}
+            <span className="font-bold text-primary">2.2% above</span>{' '}
             benchmark this month.
           </p>
         </div>
@@ -721,8 +681,7 @@ export default function Projects() {
               {/* Advanced Settings Toggle */}
               <button
                 type="button"
-                className="flex items-center gap-1 text-xs font-bold hover:underline outline-none"
-                style={{ color: PROJECT_PAGE_PRIMARY }}
+                className="flex items-center gap-1 text-xs font-bold hover:underline outline-none text-primary"
                 onClick={() => setShowAdvanced((v) => !v)}
               >
                 <span className="material-symbols-outlined text-[14px]">settings</span>
@@ -746,7 +705,7 @@ export default function Projects() {
                       onChange={(e) => setDueDate(e.target.value)}
                       className={cn(
                         'w-full h-11 px-3 bg-white rounded-lg border outline-none transition-all',
-                        'focus:ring-2 focus:border-[#0b50da] focus:ring-[#0b50da]/20',
+                        'focus:ring-2 focus:border-primary focus:ring-primary/20',
                         DIALOG_BORDER
                       )}
                     />
@@ -762,7 +721,7 @@ export default function Projects() {
                           className={cn(
                             'cursor-pointer flex',
                             priority === opt.value &&
-                              '[&>div]:border-[#0b50da] [&>div]:bg-[#0b50da]/5 [&>div]:text-[#0b50da]'
+                              '[&>div]:border-primary [&>div]:bg-primary/5 [&>div]:text-primary'
                           )}
                         >
                           <input
@@ -813,8 +772,7 @@ export default function Projects() {
               </button>
               <Button
                 type="submit"
-                className="px-5 py-2.5 text-sm font-bold text-white rounded-lg shadow-sm flex items-center gap-2 transition-all active:scale-[0.98] hover:opacity-90"
-                style={{ backgroundColor: PROJECT_PAGE_PRIMARY }}
+                className="px-5 py-2.5 text-sm font-bold rounded-lg shadow-sm flex items-center gap-2 transition-all active:scale-[0.98] hover:opacity-90 bg-primary text-primary-foreground"
                 disabled={creating}
               >
                 {creating ? 'Creating…' : (

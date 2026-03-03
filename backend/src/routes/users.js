@@ -8,7 +8,7 @@ const router = express.Router();
 // Get current authenticated user's profile
 router.get('/me', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('_id name email role phone dob profileImage createdAt');
+    const user = await User.findById(req.user.id).select('_id name email role phone dob profileImage designation createdAt');
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -50,6 +50,7 @@ router.put('/me', protect, uploadProfileImage, async (req, res) => {
         dob: user.dob,
         profileImage: user.profileImage,
         role: user.role,
+        designation: user.designation,
         createdAt: user.createdAt,
       },
     });
@@ -83,7 +84,7 @@ router.get('/search', protect, async (req, res) => {
 // Get all users (admin only)
 router.get('/', protect, requireAdmin, async (req, res) => {
   try {
-    const users = await User.find({}).select('_id name email role createdAt');
+    const users = await User.find({}).select('_id name email role designation createdAt');
     res.status(200).json({
       success: true,
       count: users.length,
@@ -97,7 +98,7 @@ router.get('/', protect, requireAdmin, async (req, res) => {
 // Get one user by id (admin only)
 router.get('/:id', protect, requireAdmin, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('_id name email role createdAt');
+    const user = await User.findById(req.params.id).select('_id name email role designation createdAt');
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -110,7 +111,7 @@ router.get('/:id', protect, requireAdmin, async (req, res) => {
 // Create user (admin only)
 router.post('/', protect, requireAdmin, async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, designation } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Name, email and password are required' });
     }
@@ -125,13 +126,14 @@ router.post('/', protect, requireAdmin, async (req, res) => {
     const chosenRole = validRoles.includes(role) ? role : 'employee';
     const user = await User.create({
       name,
+      designation: designation || '',
       email: email.toLowerCase(),
       password,
       role: chosenRole
     });
     res.status(201).json({
       success: true,
-      data: { _id: user._id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt }
+      data: { _id: user._id, name: user.name, email: user.email, role: user.role, designation: user.designation, createdAt: user.createdAt }
     });
   } catch (error) {
     if (error.code === 11000) {
@@ -144,13 +146,14 @@ router.post('/', protect, requireAdmin, async (req, res) => {
 // Update user (admin only)
 router.put('/:id', protect, requireAdmin, async (req, res) => {
   try {
-    const { name, email, role, password } = req.body;
+    const { name, email, role, password, designation } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     if (name !== undefined) user.name = name;
     if (email !== undefined) user.email = email.toLowerCase();
+    if (designation !== undefined) user.designation = designation;
     const validRoles = ['admin', 'project_manager', 'employee'];
     if (role !== undefined) user.role = validRoles.includes(role) ? role : user.role;
     if (password && password.length > 0) {
@@ -162,7 +165,7 @@ router.put('/:id', protect, requireAdmin, async (req, res) => {
     await user.save();
     res.status(200).json({
       success: true,
-      data: { _id: user._id, name: user.name, email: user.email, role: user.role, createdAt: user.createdAt }
+      data: { _id: user._id, name: user.name, email: user.email, role: user.role, designation: user.designation, createdAt: user.createdAt }
     });
   } catch (error) {
     if (error.code === 11000) {
