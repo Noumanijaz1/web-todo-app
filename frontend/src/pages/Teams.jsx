@@ -23,6 +23,16 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { teamsAPI } from '@/api/teams'
 import { usersAPI } from '@/api/users'
 import { AuthContext } from '@/context/AuthContext'
@@ -33,6 +43,8 @@ const TABS = [
   { id: 'my', label: 'My Teams' },
   { id: 'archived', label: 'Archived' },
 ]
+
+const PAGE_SIZE = 6
 
 const TEAM_ICONS = [
   { Icon: Palette, bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400' },
@@ -103,6 +115,13 @@ export default function Teams() {
   const [memberSearchOpen, setMemberSearchOpen] = useState(false)
   const memberSearchRef = useRef(null)
   const [creating, setCreating] = useState(false)
+  const [actionTeamId, setActionTeamId] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
+  const [confirmTeamId, setConfirmTeamId] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const effectiveRole = user?.role === 'user' ? 'employee' : user?.role
+  const isAdmin = effectiveRole === 'admin'
 
   const fetchTeams = async () => {
     try {
@@ -189,6 +208,12 @@ export default function Teams() {
     return list
   }, [teams, activeTab, searchQuery, user])
 
+  const totalPages = Math.max(1, Math.ceil(filteredTeams.length / PAGE_SIZE))
+  const paginatedTeams = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredTeams.slice(start, start + PAGE_SIZE)
+  }, [filteredTeams, currentPage])
+
   const handleCreateTeam = async (e) => {
     e?.preventDefault()
     if (!createName.trim()) return
@@ -205,6 +230,22 @@ export default function Teams() {
       console.error('Failed to create team:', err)
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleDeleteTeam = async (id) => {
+    if (!isAdmin || !id) return
+    setDeletingId(id)
+    try {
+      await teamsAPI.deleteTeam(id)
+      setTeams((prev) => prev.filter((t) => t._id !== id))
+      setActionTeamId(null)
+      setConfirmTeamId(null)
+    } catch (err) {
+      console.error('Failed to delete team:', err)
+      setError(err.response?.data?.message || 'Failed to delete team')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -298,12 +339,12 @@ export default function Teams() {
 
       {/* Team Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredTeams.map((team, index) => {
+        {paginatedTeams.map((team, index) => {
           const { Icon, bg, text } = getTeamIcon(index)
           return (
             <div
               key={team._id}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none transition-all group"
+              className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none transition-all group"
             >
               <div className="flex justify-between items-start mb-4">
                 <div
@@ -315,13 +356,53 @@ export default function Teams() {
                 >
                   <Icon className="h-7 w-7" />
                 </div>
-                <button
-                  type="button"
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1"
-                  aria-label="More options"
-                >
-                  <MoreHorizontal className="h-5 w-5" />
-                </button>
+                {isAdmin && (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 rounded"
+                      aria-label="More options"
+                      onClick={() =>
+                        setActionTeamId((prev) => (prev === team._id ? null : team._id))
+                      }
+                    >
+                      <MoreHorizontal className="h-5 w-5" />
+                    </button>
+                    {actionTeamId === team._id && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          aria-hidden
+                          onClick={() => setActionTeamId(null)}
+                        />
+                        <div className="absolute right-0 top-8 z-50 w-40 rounded-md border border-border bg-popover shadow-md py-1 text-sm">
+                          <button
+                            type="button"
+                            className="flex w-full items-center justify-between px-3 py-2 hover:bg-muted text-foreground"
+                            onClick={() => {
+                              setActionTeamId(null)
+                              navigate(`/teams/${team._id}`)
+                            }}
+                          >
+                            <span>Open details</span>
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            className="flex w-full items-center justify-between px-3 py-2 text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              setActionTeamId(null)
+                              setConfirmTeamId(team._id)
+                            }}
+                            disabled={deletingId === team._id}
+                          >
+                            <span>{deletingId === team._id ? 'Deleting…' : 'Delete team'}</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">
                 {team.name}
@@ -348,13 +429,6 @@ export default function Teams() {
               </div>
               <div className="pt-6 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between">
                 <MemberAvatars members={team.members} />
-                <Link
-                  to={`/teams/${team._id}`}
-                  className="text-sm font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-                >
-                  Manage Team
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
               </div>
             </div>
           )
@@ -381,6 +455,47 @@ export default function Teams() {
       {filteredTeams.length === 0 && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 text-center text-slate-500 dark:text-slate-400">
           No teams match your filters. Create a team to get started.
+        </div>
+      )}
+
+      {/* Pagination */}
+      {filteredTeams.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+          <p>
+            Showing{' '}
+            <span className="font-semibold text-slate-900 dark:text-slate-100">
+              {(currentPage - 1) * PAGE_SIZE + 1}
+            </span>{' '}
+            to{' '}
+            <span className="font-semibold text-slate-900 dark:text-slate-100">
+              {Math.min(currentPage * PAGE_SIZE, filteredTeams.length)}
+            </span>{' '}
+            of{' '}
+            <span className="font-semibold text-slate-900 dark:text-slate-100">
+              {filteredTeams.length}
+            </span>{' '}
+            teams
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded border-slate-200 dark:border-slate-700"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded border-slate-200 dark:border-slate-700"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
 
@@ -497,6 +612,31 @@ export default function Teams() {
           </form>
         </DialogContent>
       </Dialog>
+      <AlertDialog
+        open={!!confirmTeamId}
+        onOpenChange={(open) => {
+          if (!open && !deletingId) setConfirmTeamId(null)
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete team</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this team? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!deletingId}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={!!deletingId}
+              onClick={() => confirmTeamId && handleDeleteTeam(confirmTeamId)}
+            >
+              {deletingId ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

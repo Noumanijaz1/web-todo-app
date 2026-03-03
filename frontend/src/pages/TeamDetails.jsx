@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext, useMemo } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronRight,
@@ -10,9 +10,12 @@ import {
   MoreVertical,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { teamsAPI } from '@/api/teams'
 import { cn } from '@/lib/utils'
+import { AuthContext } from '@/context/AuthContext'
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -36,10 +39,18 @@ function getRoleBadgeClass(role) {
 export default function TeamDetails() {
   const { teamId } = useParams()
   const navigate = useNavigate()
+  const { user } = useContext(AuthContext)
   const [team, setTeam] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const isAdmin = useMemo(() => {
+    const role = user?.role === 'user' ? 'employee' : user?.role
+    return role === 'admin'
+  }, [user])
 
   useEffect(() => {
     if (!teamId) return
@@ -58,6 +69,39 @@ export default function TeamDetails() {
     }
     fetch()
   }, [teamId])
+
+  const handleUpdateSettings = async (e) => {
+    e.preventDefault()
+    if (!teamId || !team || !isAdmin) return
+    setSaving(true)
+    try {
+      const payload = {
+        name: team.name,
+        description: team.description,
+        health: team.health,
+        archived: !!team.archived,
+      }
+      const updated = await teamsAPI.updateTeam(teamId, payload)
+      setTeam(updated)
+    } catch (err) {
+      console.error('Failed to update team', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteTeam = async () => {
+    if (!teamId || !isAdmin) return
+    if (!window.confirm('Are you sure you want to delete this team? This cannot be undone.')) return
+    setDeleting(true)
+    try {
+      await teamsAPI.deleteTeam(teamId)
+      navigate('/teams')
+    } catch (err) {
+      console.error('Failed to delete team', err)
+      setDeleting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -307,8 +351,64 @@ export default function TeamDetails() {
         )}
 
         {activeTab === 'settings' && (
-          <div className="bg-card rounded-xl border border-border p-6">
-            <p className="text-muted-foreground">Settings tab — coming soon.</p>
+          <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+            {!isAdmin && (
+              <p className="text-sm text-muted-foreground">
+                Only admins can update or delete teams.
+              </p>
+            )}
+            <form onSubmit={handleUpdateSettings} className="space-y-4 max-w-xl">
+              <div>
+                <label className="text-sm font-medium text-foreground" htmlFor="team-name">
+                  Team name
+                </label>
+                <Input
+                  id="team-name"
+                  value={team.name || ''}
+                  onChange={(e) => setTeam((prev) => ({ ...prev, name: e.target.value }))}
+                  className="mt-1.5"
+                  disabled={!isAdmin}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground" htmlFor="team-desc">
+                  Description
+                </label>
+                <Textarea
+                  id="team-desc"
+                  value={team.description || ''}
+                  onChange={(e) => setTeam((prev) => ({ ...prev, description: e.target.value }))}
+                  className="mt-1.5 min-h-[100px]"
+                  placeholder="Briefly describe what this team is responsible for."
+                  disabled={!isAdmin}
+                />
+              </div>
+              <div className="flex items-center justify-between pt-4 border-t border-border">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-destructive">Danger zone</p>
+                  <p className="text-xs text-muted-foreground">
+                    Deleting a team is permanent and cannot be undone.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDeleteTeam}
+                  disabled={!isAdmin || deleting}
+                >
+                  {deleting ? 'Deleting…' : 'Delete team'}
+                </Button>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="submit"
+                  disabled={!isAdmin || saving}
+                >
+                  {saving ? 'Saving…' : 'Save changes'}
+                </Button>
+              </div>
+            </form>
           </div>
         )}
       </div>

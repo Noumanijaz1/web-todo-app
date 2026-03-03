@@ -56,3 +56,47 @@ exports.createTeam = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.updateTeam = async (req, res, next) => {
+  try {
+    if (role(req) !== 'admin') {
+      return res.status(403).json({ message: 'Only Admin can update teams' });
+    }
+    const team = await Team.findById(req.params.id);
+    if (!team) {
+      return res.status(404).json({ message: 'Team not found' });
+    }
+
+    const { name, description, members, health, archived } = req.body;
+    if (name !== undefined) team.name = name;
+    if (description !== undefined) team.description = description;
+    if (Array.isArray(members)) team.members = members;
+    if (health !== undefined) team.health = health;
+    if (archived !== undefined) team.archived = archived;
+
+    await team.save();
+
+    const populated = await Team.findById(team._id)
+      .populate('members', 'name email')
+      .populate('createdBy', 'name email');
+
+    res.json(populated);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteTeam = async (req, res, next) => {
+  try {
+    if (role(req) !== 'admin') {
+      return res.status(403).json({ message: 'Only Admin can delete teams' });
+    }
+    const team = await Team.findByIdAndDelete(req.params.id);
+    if (!team) {
+      return res.status(404).json({ message: 'Team not found' });
+    }
+    res.json({ message: 'Team deleted' });
+  } catch (err) {
+    next(err);
+  }
+};

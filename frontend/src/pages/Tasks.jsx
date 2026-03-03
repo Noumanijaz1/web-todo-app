@@ -30,7 +30,6 @@ import { AuthContext } from '@/context/AuthContext'
 import CreateTaskDialog from '@/components/ui/create-task-dialog'
 import { cn } from '@/lib/utils'
 
-const PRIMARY = '#0b50da'
 const PAGE_SIZE = 10
 
 const STATUS_OPTIONS = [
@@ -339,7 +338,7 @@ export default function Tasks() {
       <div className="px-4 lg:px-10 py-8 max-w-[1440px] mx-auto w-full bg-[#f5f6f8] dark:bg-[#101622] min-h-full">
         {/* Breadcrumbs */}
         <nav className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
-          <Link to="/projects" className="hover:opacity-80 transition-colors" style={{ color: PRIMARY }}>
+          <Link to="/projects" className="hover:opacity-80 transition-colors text-primary">
             Projects
           </Link>
           <span className="material-symbols-outlined text-xs">chevron_right</span>
@@ -358,19 +357,18 @@ export default function Tasks() {
               </p>
               <div className="w-32 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full rounded-full"
-                  style={{ width: `${progressPercent}%`, backgroundColor: PRIMARY }}
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${progressPercent}%` }}
                 />
               </div>
-              <span className="text-xs font-bold" style={{ color: PRIMARY }}>
+              <span className="text-xs font-bold text-primary">
                 {progressPercent}%
               </span>
             </div>
           </div>
           <Button
             onClick={() => setShowCreateDialog(true)}
-            className="flex items-center gap-2 text-white px-5 py-2.5 rounded-lg font-bold text-sm transition-all shadow-sm"
-            style={{ backgroundColor: PRIMARY }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all shadow-sm bg-primary text-primary-foreground"
           >
             <span className="material-symbols-outlined text-sm">add</span>
             Create Task
@@ -441,7 +439,7 @@ export default function Tasks() {
                   </Select>
                 </div>
                 <div className="flex items-center gap-2 border-l border-gray-100 dark:border-gray-800 pl-4">
-                  <button type="button" className="flex items-center gap-1 text-gray-500 text-xs font-bold px-2 py-1.5 hover:opacity-80 transition-colors" style={{ color: PRIMARY }}>
+                  <button type="button" className="flex items-center gap-1 text-gray-500 text-xs font-bold px-2 py-1.5 hover:opacity-80 transition-colors text-primary">
                     <span className="material-symbols-outlined text-sm">sort</span> Sort
                   </button>
                   <button
@@ -510,8 +508,8 @@ export default function Tasks() {
                                     e.stopPropagation()
                                     handleToggleComplete(todo.id)
                                   }}
-                                  className="shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors border-gray-300 dark:border-gray-600 group-hover:border-[#0b50da]"
-                                  style={isDone ? { backgroundColor: PRIMARY, borderColor: PRIMARY } : {}}
+                                  className="shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors border-gray-300 dark:border-gray-600 group-hover:border-primary"
+                                  style={isDone ? { backgroundColor: 'var(--color-primary)', borderColor: 'var(--color-primary)' } : {}}
                                 >
                                   {isDone && <span className="material-symbols-outlined text-[14px] text-white">check</span>}
                                 </button>
@@ -602,30 +600,58 @@ export default function Tasks() {
               </div>
             </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                <p>
-                  Showing {start + 1}-{Math.min(start + PAGE_SIZE, filteredTodos.length)} of {filteredTodos.length}
+            {/* Pagination Footer (same layout/style as Projects) */}
+            {filteredTodos.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-4 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-800">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Showing{' '}
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {start + 1}
+                  </span>{' '}
+                  to{' '}
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {Math.min(start + PAGE_SIZE, filteredTodos.length)}
+                  </span>{' '}
+                  of{' '}
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {filteredTodos.length}
+                  </span>{' '}
+                  tasks
                 </p>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
+                    className="rounded border-slate-200 dark:border-slate-700"
                     disabled={currentPage <= 1}
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className="rounded-lg"
                   >
-                    <span className="material-symbols-outlined text-sm">chevron_left</span>
+                    Previous
                   </Button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? 'default' : 'outline'}
+                      size="sm"
+                      className={cn(
+                        'rounded px-3 py-1',
+                        currentPage === page
+                          ? 'bg-primary text-primary-foreground'
+                          : 'border-slate-200 dark:border-slate-700'
+                      )}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </Button>
+                  ))}
                   <Button
                     variant="outline"
                     size="sm"
+                    className="rounded border-slate-200 dark:border-slate-700"
                     disabled={currentPage >= totalPages}
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    className="rounded-lg"
                   >
-                    <span className="material-symbols-outlined text-sm">chevron_right</span>
+                    Next
                   </Button>
                 </div>
               </div>
@@ -641,7 +667,7 @@ export default function Tasks() {
                   <Link
                     to={`/tasks/${selectedForSidebar.id}`}
                     className="text-gray-400 hover:opacity-80 transition-colors"
-                    style={{ color: PRIMARY }}
+                  
                   >
                     <span className="material-symbols-outlined text-xl">open_in_new</span>
                   </Link>
@@ -693,7 +719,7 @@ export default function Tasks() {
                           size="sm"
                           disabled={!sidebarNote.trim() || submittingNote}
                           className="self-end rounded-lg text-xs"
-                          style={{ backgroundColor: PRIMARY }}
+
                         >
                           {submittingNote ? 'Sending…' : 'Add note'}
                         </Button>
@@ -720,7 +746,7 @@ export default function Tasks() {
                               </p>
                             </div>
                           </div>
-                          <a
+                    <a
                             href={`${API_BASE_URL}/uploads/${att.path}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -731,14 +757,14 @@ export default function Tasks() {
                         </div>
                       ))}
                     </div>
-                    <label className="mt-4 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-[#0b50da]/50 cursor-pointer transition-colors group">
+                    <label className="mt-4 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-lg p-6 flex flex-col items-center justify-center gap-2 hover:border-primary/50 cursor-pointer transition-colors group">
                       <input
                         type="file"
                         className="hidden"
                         onChange={handleFileUpload}
                         disabled={uploadingFile}
                       />
-                      <span className="material-symbols-outlined text-gray-400 group-hover:opacity-80" style={{ color: PRIMARY }}>
+                      <span className="material-symbols-outlined text-gray-400 group-hover:opacity-80 text-primary">
                         upload_file
                       </span>
                       <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
@@ -761,8 +787,7 @@ export default function Tasks() {
                       Edit
                     </Button>
                     <Button
-                      className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold text-white"
-                      style={{ backgroundColor: PRIMARY }}
+                      className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold bg-primary text-primary-foreground"
                       onClick={() => handleToggleComplete(selectedForSidebar.id)}
                     >
                       <span className="material-symbols-outlined text-lg">done_all</span>
@@ -774,8 +799,8 @@ export default function Tasks() {
             </div>
 
             {/* Project Insights */}
-            <div className="bg-[#0b50da]/5 dark:bg-[#0b50da]/10 rounded-xl p-6 border border-[#0b50da]/10">
-              <h4 className="text-sm font-black uppercase tracking-widest mb-4" style={{ color: PRIMARY }}>
+            <div className="bg-primary/5 dark:bg-primary/10 rounded-xl p-6 border border-primary/10">
+              <h4 className="text-sm font-black uppercase tracking-widest mb-4 text-primary">
                 Project Insights
               </h4>
               <div className="space-y-4">
@@ -789,8 +814,8 @@ export default function Tasks() {
                   <span className="text-xs text-gray-600 dark:text-gray-400">Progress</span>
                   <span className="text-xs font-bold text-gray-900 dark:text-white">{progressPercent}%</span>
                 </div>
-                <div className="pt-4 border-t border-[#0b50da]/10">
-                  <p className="text-[11px] leading-relaxed font-medium opacity-90" style={{ color: PRIMARY }}>
+                <div className="pt-4 border-t border-primary/10">
+                  <p className="text-[11px] leading-relaxed font-medium opacity-90 text-primary">
                     {progressPercent >= 100
                       ? 'All tasks completed for this view.'
                       : `${totalCount - doneCount} task(s) remaining.`}

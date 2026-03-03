@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react'
+import { useState, useEffect, useContext, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,44 +16,6 @@ import { projectsAPI } from '@/api/projects'
 import { AuthContext } from '@/context/AuthContext'
 import { format, isToday, isTomorrow } from 'date-fns'
 import { cn } from '@/lib/utils'
-
-// Mock team activity for demo
-const MOCK_ACTIVITY = [
-  {
-    id: 1,
-    user: 'Sarah Williams',
-    avatar: 'S',
-    action: 'moved',
-    target: 'Mobile App Designs',
-    tag: 'Done',
-    tagColor: 'text-green-600',
-    time: '2 mins ago',
-  },
-  {
-    id: 2,
-    user: 'John Doe',
-    avatar: 'J',
-    action: 'commented on',
-    target: 'Project Phoenix',
-    quote: 'The latest requirements have been added to the docs.',
-    time: '2 mins ago',
-  },
-  {
-    id: 3,
-    user: 'Mike Chen',
-    avatar: 'M',
-    action: 'assigned a new task',
-    target: 'Update API Documentation',
-    extra: 'to you',
-    time: '1 hour ago',
-  },
-  {
-    id: 4,
-    type: 'document',
-    title: 'New project proposal Q4 Roadmap was drafted',
-    time: '3 hours ago',
-  },
-]
 
 function StatCard({ title, value, subtitle, icon: Icon, trend, trendDown, progress, status, statusClass }) {
   return (
@@ -148,6 +110,37 @@ export default function Dashboard() {
   const totalProjects = projects.length
   const completedPct = totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0
 
+  const recentActivity = useMemo(() => {
+    const events = []
+
+    todos.forEach((t) => {
+      if (t.createdAt) {
+        events.push({
+          id: `created-${t.id}`,
+          type: 'created',
+          taskTitle: t.title,
+          date: new Date(t.createdAt),
+          userName: 'Someone',
+        })
+      }
+
+      ;(t.comments ?? []).forEach((c, idx) => {
+        const created = c.createdAt ? new Date(c.createdAt) : null
+        events.push({
+          id: `comment-${t.id}-${idx}`,
+          type: 'comment',
+          taskTitle: t.title,
+          date: created || new Date(),
+          userName: c.userName || 'Someone',
+          text: c.text,
+        })
+      })
+    })
+
+    events.sort((a, b) => b.date - a.date)
+    return events.slice(0, 5)
+  }, [todos])
+
   const upcomingDeadlines = todos
     .filter((t) => t.dueDate && !t.completed && new Date(t.dueDate) >= now)
     .map((t) => ({ ...t, due: new Date(t.dueDate) }))
@@ -221,46 +214,46 @@ export default function Dashboard() {
             </Button>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-4">
-              {MOCK_ACTIVITY.map((item) => (
-                <li key={item.id} className="flex gap-3">
-                  {item.type === 'document' ? (
-                    <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  ) : (
+            {recentActivity.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">No recent team activity.</p>
+            ) : (
+              <ul className="space-y-4">
+                {recentActivity.map((item) => (
+                  <li key={item.id} className="flex gap-3">
                     <div className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center font-semibold text-sm shrink-0">
-                      {item.avatar}
+                      {(item.userName || 'T').charAt(0).toUpperCase()}
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    {item.type === 'document' ? (
-                      <p className="text-sm text-foreground">{item.title}</p>
-                    ) : (
-                      <>
-                        <p className="text-sm text-foreground">
-                          <span className="font-medium">{item.user}</span>
-                          {' '}{item.action}{' '}
-                          <Link to="/tasks" className="text-primary hover:underline font-medium">
-                            {item.target}
-                          </Link>
-                          {item.extra && ` ${item.extra}`}
-                          {item.tag && (
-                            <span className={cn('ml-1.5 font-medium', item.tagColor)}>
-                              {item.tag}
-                            </span>
+                    <div className="flex-1 min-w-0">
+                      {item.type === 'comment' ? (
+                        <>
+                          <p className="text-sm text-foreground">
+                            <span className="font-medium">{item.userName}</span>
+                            {' commented on '}
+                            <Link to="/tasks" className="text-primary hover:underline font-medium">
+                              {item.taskTitle}
+                            </Link>
+                          </p>
+                          {item.text && (
+                            <p className="text-xs text-muted-foreground mt-1 italic">"{item.text}"</p>
                           )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-foreground">
+                          <span className="font-medium">{item.userName}</span>
+                          {' created task '}
+                          <Link to="/tasks" className="text-primary hover:underline font-medium">
+                            {item.taskTitle}
+                          </Link>
                         </p>
-                        {item.quote && (
-                          <p className="text-xs text-muted-foreground mt-1 italic">"{item.quote}"</p>
-                        )}
-                      </>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.time}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {format(item.date, 'MMM d, yyyy • h:mm a')}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
 

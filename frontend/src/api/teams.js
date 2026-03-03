@@ -23,5 +23,16 @@ export const teamsAPI = {
       { headers: getAuthHeader() }
     );
     return response.data;
-  }
+  },
+  updateTeam: async (id, payload) => {
+    const response = await axios.put(`${API_BASE}/teams/${id}`, payload, {
+      headers: getAuthHeader(),
+    });
+    return response.data;
+  },
+  deleteTeam: async (id) => {
+    await axios.delete(`${API_BASE}/teams/${id}`, {
+      headers: getAuthHeader(),
+    });
+  },
 };

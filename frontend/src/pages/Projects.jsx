@@ -8,6 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -85,6 +95,9 @@ export default function Projects() {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [creating, setCreating] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [actionProjectId, setActionProjectId] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
+  const [confirmProjectId, setConfirmProjectId] = useState(null)
 
   const fetchProjects = () => {
     projectsAPI
@@ -186,6 +199,21 @@ export default function Projects() {
     if (status === 'completed' || percent === 100) return 'bg-green-500'
     if (status === 'at_risk') return 'bg-amber-500'
     return 'bg-primary'
+  }
+
+  const handleDeleteProject = async (id) => {
+    if (!canCreateProject || !id) return
+    setDeletingId(id)
+    try {
+      await projectsAPI.delete(id)
+      setProjects((prev) => prev.filter((p) => p._id !== id))
+      setActionProjectId(null)
+      setConfirmProjectId(null)
+    } catch (err) {
+      console.error('Failed to delete project:', err)
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   return (
@@ -365,21 +393,54 @@ export default function Projects() {
                         </div>
                       </td>
                       <td className="px-6 py-5 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <Link
-                            to={`/tasks?project=${project._id}`}
-                            className="text-xs font-bold flex items-center gap-1 text-primary"
-                          >
-                            <span className="material-symbols-outlined text-sm">assignment</span>
-                            Tasks
-                          </Link>
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
-                            className="material-symbols-outlined text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+                            className="material-symbols-outlined text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors p-1 rounded"
                             aria-label="More actions"
+                            onClick={() =>
+                              setActionProjectId((prev) => (prev === project._id ? null : project._id))
+                            }
                           >
                             more_horiz
                           </button>
+                          {actionProjectId === project._id && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-40"
+                                aria-hidden
+                                onClick={() => setActionProjectId(null)}
+                              />
+                              <div className="relative z-50">
+                                <div className="absolute right-6 mt-1 w-40 rounded-md border border-border bg-popover shadow-md py-1 text-sm">
+                                  <button
+                                    type="button"
+                                    className="flex w-full items-center justify-between px-3 py-2 hover:bg-muted text-foreground"
+                                    onClick={() => {
+                                      setActionProjectId(null)
+                                      window.location.href = `/tasks?project=${project._id}`
+                                    }}
+                                  >
+                                    <span>View tasks</span>
+                                    <span className="material-symbols-outlined text-xs">assignment</span>
+                                  </button>
+                                  {canCreateProject && (
+                                    <button
+                                      type="button"
+                                      className="flex w-full items-center justify-between px-3 py-2 text-destructive hover:bg-destructive/10"
+                                      onClick={() => {
+                                        setActionProjectId(null)
+                                        setConfirmProjectId(project._id)
+                                      }}
+                                      disabled={deletingId === project._id}
+                                    >
+                                      <span>{deletingId === project._id ? 'Deleting…' : 'Delete project'}</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -786,6 +847,31 @@ export default function Projects() {
           </form>
         </DialogContent>
       </Dialog>
+      <AlertDialog
+        open={!!confirmProjectId}
+        onOpenChange={(open) => {
+          if (!open && !deletingId) setConfirmProjectId(null)
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete project</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this project? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!deletingId}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={!!deletingId}
+              onClick={() => confirmProjectId && handleDeleteProject(confirmProjectId)}
+            >
+              {deletingId ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
