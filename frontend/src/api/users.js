@@ -21,4 +21,27 @@ export const usersAPI = {
     });
     return response.data?.data ?? [];
   },
+  getById: async (id) => {
+    const response = await axios.get(`${API_BASE}/users/${id}`, {
+      headers: getAuthHeader(),
+    });
+    return response.data?.data ?? null;
+  },
+  create: async (data) => {
+    const response = await axios.post(`${API_BASE}/users`, data, {
+      headers: getAuthHeader(),
+    });
+    return response.data?.data ?? null;
+  },
+  update: async (id, data) => {
+    const response = await axios.put(`${API_BASE}/users/${id}`, data, {
+      headers: getAuthHeader(),
+    });
+    return response.data?.data ?? null;
+  },
+  delete: async (id) => {
+    await axios.delete(`${API_BASE}/users/${id}`, {
+      headers: getAuthHeader(),
+    });
+  },
 };

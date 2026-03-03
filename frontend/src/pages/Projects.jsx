@@ -378,7 +378,7 @@ export default function Projects() {
                         <div className="flex items-center justify-end gap-3">
                           <Link
                             to={`/tasks?project=${project._id}`}
-                            className="text-xs font-bold hover:underline flex items-center gap-1"
+                            className="text-xs font-bold flex items-center gap-1"
                             style={{ color: PROJECT_PAGE_PRIMARY }}
                           >
                             <span className="material-symbols-outlined text-sm">assignment</span>

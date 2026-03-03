@@ -14,6 +14,7 @@ import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import Teams from "./pages/Teams";
 import TeamDetails from "./pages/TeamDetails";
+import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import AppLayout from "./components/layout/AppLayout";
 
@@ -44,6 +45,7 @@ function App() {
             <Route path="projects" element={<Projects />} />
             <Route path="teams" element={<Teams />} />
             <Route path="teams/:teamId" element={<TeamDetails />} />
+            <Route path="users" element={<Users />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
